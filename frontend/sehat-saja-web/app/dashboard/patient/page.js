@@ -457,36 +457,40 @@ export default function PatientDashboard() {
               <p className="text-gray-600">Patient</p>
             </div>
           </div>
-          
-          <nav className="space-y-2">
-            <button
-              onClick={() => setActiveView("appointments")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <Calendar size={20} className="mr-3" />
-              My Appointments
-            </button>
-            <button
-              onClick={() => setActiveView("payments")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <CurrencyDollar size={20} className="mr-3" />
-              Payment History
-            </button>
-            <button
-              onClick={() => setActiveView("account")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <User size={20} className="mr-3" />
-              Account Settings
-            </button>
-          </nav>
+          <div className="nav flex flex-col">
+            <nav className="space-y-2">
+                <button
+                onClick={() => setActiveView("appointments")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                    activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+                >
+                <Calendar size={20} className="mr-3" />
+                My Appointments
+                </button>
+                <button
+                onClick={() => setActiveView("payments")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                    activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+                >
+                <CurrencyDollar size={20} className="mr-3" />
+                Payment History
+                </button>
+                <button
+                onClick={() => setActiveView("account")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                    activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+                >
+                <User size={20} className="mr-3" />
+                Account Settings
+                </button>
+            </nav>
+            <a href="/" className="w-full mt-16 text-white p-3 font-medium bg-blue-500">
+                Home
+            </a>
+          </div>
         </div>
 
         <div className="w-[25%]"></div>
