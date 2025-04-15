@@ -12,7 +12,7 @@ export default function Footer() {
         <div className="footer-bottom flex flex-row justify-between">
             <div className="footer-bottom-left w-[28%] flex flex-col">
             <h1 className="text-sm font-light mb-6 text-white">
-                Lorem ipsum dolor sit amet consectetur adipisicing elit. Debitis quibusdam eaque sed totam quidem tempora illum modi voluptate fugit omnis.
+                SehatSaja is a digital health platform that helps users stay healthy through medicine reminders, doctor schedules, health articles, and a map to find nearby medical services.
             </h1>
             <h1 className="font-semibold text-xl mb-4">
                 Contact Us
@@ -35,22 +35,22 @@ export default function Footer() {
             </div>
             </div>
             <div className="footer-bottom-center w-[28%] flex flex-col text-white">
-            <div className="footer-nav">
+            <div className="footer-nav flex flex-col">
                 <h1 className="font-semibold text-xl mb-4">
                 Navigation
                 </h1>
-                <h1 className="text-sm text-white font-light mb-3">
-                About Us
-                </h1>
-                <h1 className="text-sm text-white font-light mb-3">
-                FAQs
-                </h1>
-                <h1 className="text-sm text-white font-light mb-3">
-                Fitur 3
-                </h1>
-                <h1 className="text-sm text-white font-light mb-3">
-                Fitur 4
-                </h1>
+                <a href="/" className="text-sm text-white font-light mb-3">
+                Home
+                </a>
+                <a href="/appointment" className="text-sm text-white font-light mb-3">
+                Appointment
+                </a>
+                <a href="/article" className="text-sm text-white font-light mb-3">
+                Article
+                </a>
+                <a href="/maps" className="text-sm text-white font-light mb-3">
+                Maps
+                </a>
             </div>
             </div>
             <div className="footer-bottom-right w-[28%] flex flex-col text-white">

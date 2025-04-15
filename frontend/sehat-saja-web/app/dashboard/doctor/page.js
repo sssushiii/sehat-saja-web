@@ -4,10 +4,8 @@ import { useState } from "react";
 import { CaretRight, User, Calendar, CurrencyDollar, UsersThree} from "@phosphor-icons/react/dist/ssr";
 
 export default function DoctorDashboard() {
-  // State untuk menentukan tampilan aktif
   const [activeView, setActiveView] = useState("schedule");
   
-  // State untuk manajemen jadwal (sama seperti sebelumnya)
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -31,10 +29,6 @@ export default function DoctorDashboard() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [newTime, setNewTime] = useState("");
 
-  // State untuk fitur lainnya
-  const [patients, setPatients] = useState([]);
-  const [payments, setPayments] = useState([]);
-  const [messages, setMessages] = useState([]);
   const [accountData, setAccountData] = useState({
     name: "Dr. Hakim Ismail",
     specialty: "Dokter Umum",
@@ -287,7 +281,6 @@ export default function DoctorDashboard() {
           )}
         </div>
   
-        {/* Modal untuk detail pasien */}
         {selectedPatient && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
             <div className="bg-white w-full max-w-md p-6 rounded-xl shadow-lg relative">
@@ -355,7 +348,6 @@ export default function DoctorDashboard() {
   
     return (
       <div className="bg-white p-6 rounded-xl shadow-md">
-        {/* Header */}
         <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Total Balance</h1>
@@ -366,7 +358,6 @@ export default function DoctorDashboard() {
           </button>
         </div>
   
-        {/* Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
             <thead className="bg-gray-100 text-gray-600 uppercase text-xs">
@@ -409,47 +400,152 @@ export default function DoctorDashboard() {
   };
 
 
-  const AccountSettings = () => (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Account Settings</h1>
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
-            <input 
-              type="text" 
-              value={accountData.name} 
-              onChange={(e) => setAccountData({...accountData, name: e.target.value})}
-              className="mt-1 p-2 w-full border rounded-md"
-            />
+  const AccountSettings = () => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState({...accountData});
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+  
+    const handleSave = () => {
+      setAccountData(editData);
+      setIsEditing(false);
+    };
+  
+    const handlePasswordChange = () => {
+      alert("Password changed successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    };
+  
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">Account Settings</h1>
+        
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          {!isEditing ? (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-500">Name</label>
+                <p className="font-medium">{accountData.name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500">Specialty</label>
+                <p className="font-medium">{accountData.specialty}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500">Email</label>
+                <p className="font-medium">{accountData.email}</p>
+              </div>
+              <div className="pt-4">
+                <button
+                  onClick={() => {
+                    setEditData({...accountData});
+                    setIsEditing(true);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Edit Profile
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded"
+                  value={editData.name}
+                  onChange={(e) => setEditData({...editData, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Specialty</label>
+                <input
+                  type="text"
+                  className="w-full p-2 border border-gray-300 rounded"
+                  value={editData.specialty}
+                  onChange={(e) => setEditData({...editData, specialty: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  className="w-full p-2 border border-gray-300 rounded"
+                  value={editData.email}
+                  onChange={(e) => setEditData({...editData, email: e.target.value})}
+                />
+              </div>
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+  
+        <div className="bg-white rounded-xl shadow-sm p-6">
+          <h2 className="text-xl font-semibold mb-4">Change Password</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Current Password</label>
+              <input
+                type="password"
+                className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">New Password</label>
+              <input
+                type="password"
+                className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Confirm New Password</label>
+              <input
+                type="password"
+                className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={handlePasswordChange}
+                disabled={!currentPassword || !newPassword || newPassword !== confirmPassword}
+                className={`px-4 py-2 rounded ${
+                  currentPassword && newPassword && newPassword === confirmPassword
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                }`}
+              >
+                Change Password
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Specialty</label>
-            <input 
-              type="text" 
-              value={accountData.specialty} 
-              onChange={(e) => setAccountData({...accountData, specialty: e.target.value})}
-              className="mt-1 p-2 w-full border rounded-md"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <input 
-              type="email" 
-              value={accountData.email} 
-              onChange={(e) => setAccountData({...accountData, email: e.target.value})}
-              className="mt-1 p-2 w-full border rounded-md"
-            />
-          </div>
-          <button className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-            Save Changes
-          </button>
         </div>
       </div>
-    </div>
-  );
-
-  // Render komponen berdasarkan activeView
+    );
+  };
+  
   const renderActiveView = () => {
     switch(activeView) {
       case "schedule": return <ScheduleManagement />;
