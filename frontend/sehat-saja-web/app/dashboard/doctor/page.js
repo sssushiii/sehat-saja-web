@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CaretRight, User, Calendar, CurrencyDollar, UsersThree} from "@phosphor-icons/react/dist/ssr";
+import { CaretRight, House, User, Calendar, CurrencyDollar, UsersThree} from "@phosphor-icons/react/dist/ssr";
 
 export default function DoctorDashboard() {
   const [activeView, setActiveView] = useState("schedule");

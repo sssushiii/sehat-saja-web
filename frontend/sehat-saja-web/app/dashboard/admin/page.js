@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MagnifyingGlass, User, Calendar, CurrencyDollar, Newspaper } from "@phosphor-icons/react/dist/ssr";
+import { MagnifyingGlass, User, Calendar, House, CurrencyDollar, Newspaper } from "@phosphor-icons/react/dist/ssr";
 import { Article } from "../../data/articles";
 
 export default function AdminDashboard() {
@@ -978,45 +978,52 @@ export default function AdminDashboard() {
               <h2 className="text-xl font-semibold">Admin Dashboard</h2>
             </div>
           </div>
-          
-          <nav className="space-y-2">
-            <button
-              onClick={() => setActiveView("users")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "users" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <User size={20} className="mr-3" />
-              Manage Users
-            </button>
-            <button
-              onClick={() => setActiveView("appointments")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <Calendar size={20} className="mr-3" />
-              Manage Appointments
-            </button>
-            <button
-              onClick={() => setActiveView("payments")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <CurrencyDollar size={20} className="mr-3" />
-              Manage Payments
-            </button>
-            <button
-              onClick={() => setActiveView("news")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "news" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <Newspaper size={20} className="mr-3" />
-              Manage News
-            </button>
-          </nav>
+          <div className="nav flex flex-col">
+            <nav className="space-y-2">
+                <button
+                onClick={() => setActiveView("users")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                    activeView === "users" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+                >
+                <User size={20} className="mr-3" />
+                Manage Users
+                </button>
+                <button
+                onClick={() => setActiveView("appointments")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                    activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+                >
+                <Calendar size={20} className="mr-3" />
+                Manage Appointments
+                </button>
+                <button
+                onClick={() => setActiveView("payments")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                    activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+                >
+                <CurrencyDollar size={20} className="mr-3" />
+                Manage Payments
+                </button>
+                <button
+                onClick={() => setActiveView("news")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                    activeView === "news" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+                >
+                <Newspaper size={20} className="mr-3" />
+                Manage News
+                </button>
+            </nav>
+            <a href="/" className="w-full mt-16 text-white p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center">
+                <House size={20} className="mr-3"/>
+                <h1>
+                    Home
+                </h1>
+            </a>
+          </div>
         </div>
 
         <div className="w-[25%]"></div>
