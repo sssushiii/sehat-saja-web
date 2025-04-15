@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
-  const pathname = usePathname(); // Menentukan halaman aktif
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,7 +31,6 @@ export default function Navbar() {
       className={`fixed top-0 left-0 w-full px-15 flex items-center justify-between h-16 z-50 transition-all duration-200 
       ${scrolled ? "bg-white shadow-sm" : "bg-transparent"}`}
     >
-      {/* Logo */}
       <Link href="/">
         <img
           src={scrolled ? "/assets/logo-sehatsaja-blue.png" : "/assets/logo-sehatsaja-white.png"}
@@ -40,7 +39,6 @@ export default function Navbar() {
         />
       </Link>
 
-      {/* Navbar Items */}
       <div className="bar flex flex-row justify-evenly w-1/2 h-full">
         {navItems.map((item) => (
           <Link
@@ -59,7 +57,6 @@ export default function Navbar() {
         ))}
       </div>
 
-      {/* Login & Register Buttons */}
       <div className="logreg flex flex-row h-full w-65 items-center justify-end gap-2 font-medium">
         <Link
           href="/dashboard/doctor"
@@ -80,93 +77,3 @@ export default function Navbar() {
   );
 }
 
-
-
-
-
-
-
-// "use client";
-
-// import { useState, useEffect } from "react";
-// import Link from "next/link";
-// import { usePathname } from "next/navigation";
-
-// export default function Navbar() {
-//   const [scrolled, setScrolled] = useState(false);
-//   const pathname = usePathname(); // Cek halaman yang sedang aktif
-
-//   useEffect(() => {
-//     const handleScroll = () => {
-//       setScrolled(window.scrollY > 50);
-//     };
-
-//     window.addEventListener("scroll", handleScroll);
-//     return () => {
-//       window.removeEventListener("scroll", handleScroll);
-//     };
-//   }, []);
-
-//   const navItems = [
-//     { name: "Home", href: "/" },
-//     { name: "Appointment", href: "/appointment" },
-//     { name: "News", href: "/news" },
-//     { name: "Maps", href: "/maps" },
-//   ];
-
-//   return (
-//     <div
-//       className={`fixed top-0 left-0 w-full px-15 flex items-center justify-between h-16 z-50 transition-all duration-200 ${
-//         scrolled ? "bg-white shadow-sm" : "bg-transparent"
-//       }`}
-//     >
-//       <Link href="/">
-//         <img
-//           src={scrolled ? "/assets/logo-sehatsaja-blue.png" : "/assets/logo-sehatsaja-white.png"}
-//           className="h-10"
-//           alt="Logo"
-//         />
-//       </Link>
-//       <div className="bar flex flex-row justify-evenly w-1/2 h-full">
-//         <Link href="/" className="h-full flex flex-col items-center justify-center w-3/4 group">
-//           <h1 className={`group-hover:font-semibold duration-200 transition-all ${
-//             scrolled ? "text-blue-500" : "text-white"
-//           }`}>Home</h1>
-//         </Link>
-//         <Link href="/appointment" className="h-full flex flex-col items-center justify-center w-3/4 group">
-//           <h1 className={`group-hover:font-semibold duration-200 transition-all ${
-//             scrolled ? "text-blue-500" : "text-white"
-//           }`}>Appointment</h1>
-//         </Link>
-//         <Link href="/news" className="h-full flex flex-col items-center justify-center w-3/4 group">
-//           <h1 className={`group-hover:font-semibold duration-200 transition-all ${
-//             scrolled ? "text-blue-500" : "text-white"
-//           }`}>News</h1>
-//         </Link>
-//         <Link href="/maps" className="h-full flex flex-col items-center justify-center w-3/4 group">
-//           <h1 className={`group-hover:font-semibold duration-200 transition-all ${
-//             scrolled ? "text-blue-500" : "text-white"
-//           }`}>Maps</h1>
-//         </Link>
-//       </div>
-//       <div className="logreg flex flex-row h-full w-65 items-center justify-end gap-2 font-medium">
-//         <Link
-//           href="/sign-in"
-//           className={`px-4 py-2 transition-all signin-head h-[70%] flex items-center justify-center w-28 border-solid border-2 rounded-md bg-black/0 hover:bg-black/5 ease-in-out duration-200${
-//             scrolled ? "border-blue-500 text-blue-500" : "border-white text-white"
-//           }`}
-//         >
-//           Sign In
-//         </Link>
-//         <Link
-//           href="/sign-in"
-//           className={`px-4 py-2 transition-all signin-head h-[70%] bg-blue-500 flex items-center justify-center w-28 border-solid border-2 rounded-md bg-black/0 hover:bg-black/5 ease-in-out duration-200${
-//             scrolled ? "bg-blue-500 border-blue-500 text-white" : " bg-white text-blue-500 border-white"
-//           }`}
-//         >
-//           Sign Up
-//         </Link>
-//       </div>
-//     </div>
-//   );
-// }

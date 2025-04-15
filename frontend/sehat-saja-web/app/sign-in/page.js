@@ -4,7 +4,12 @@ import Link from "next/link";
 export default function SignIn() {
     return(
         <>
-        <div className="all w-full bg-[url('/assets/bg-all-sign.jpg')] bg-cover h-screen flex text-black">
+        <div className="all w-full bg-[url('/assets/bg-all-sign.jpg')] bg-cover h-screen flex text-black relative">
+        <div className="w-auto fixed right-10 bottom-10 z-10 flex flex-col gap-3">
+            <a href="/dashboard/admin" className="bg-white p-4 rounded-md hover:bg-blue-100 transition-all duration-100">Login as Admin</a>
+            <a href="/dashboard/doctor" className="bg-white p-4 rounded-md hover:bg-blue-100 transition-all duration-100">Login as Doctor</a>
+            <a href="/dashboard/patient" className="bg-white p-4 rounded-md hover:bg-blue-100 transition-all duration-100">Login as Patient</a>
+        </div>
         <div className="w-full h-full backdrop-blur-sm flex items-center justify-end">
             <div className="first-left w-full h-full bg-transparent flex items-center justify-end">
                     <div className="second-left w-[75%] h-[85%] bg-white rounded-l-2xl justify-center px-[10%] py-[8%] tracking-wide">

@@ -5,11 +5,10 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-const position = [-7.250445, 112.768845]; // Pusat Surabaya
+const position = [-7.250445, 112.768845]; 
 
-// Custom icon untuk marker
 const hospitalIcon = new L.Icon({
-  iconUrl: "/hospital-icon.png", // Simpan di /public/
+  iconUrl: "/hospital-icon.png", 
   iconSize: [30, 30],
 });
 

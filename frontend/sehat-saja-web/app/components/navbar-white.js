@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 export default function NavbarWhite() {
   const [scrolled, setScrolled] = useState(false);
-  const pathname = usePathname(); // Cek halaman yang sedang aktif
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {

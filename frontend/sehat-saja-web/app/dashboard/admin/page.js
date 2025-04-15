@@ -31,7 +31,6 @@ export default function AdminDashboard() {
     }
   ]);
 
-  // State untuk manajemen appointment
   const [appointments, setAppointments] = useState([
     {
       id: 1,
@@ -51,7 +50,6 @@ export default function AdminDashboard() {
     }
   ]);
 
-  // State untuk manajemen payment
   const [payments, setPayments] = useState([
     {
       id: "PAY-001",
@@ -143,7 +141,6 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Manage Users</h1>
   
-        {/* Search & Filter Form */}
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex gap-4">
@@ -178,7 +175,6 @@ export default function AdminDashboard() {
           </form>
         </div>
   
-        {/* Table User */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -243,7 +239,6 @@ export default function AdminDashboard() {
           </table>
         </div>
   
-        {/* Edit Modal */}
         {isEditing && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl p-6 w-full max-w-md">
@@ -342,13 +337,11 @@ export default function AdminDashboard() {
       );
       setAppointments(updatedAppointments);
       
-      // Also update the selected appointment if it's the one being modified
       if (selectedAppointment && selectedAppointment.id === appointmentId) {
         setSelectedAppointment({ ...selectedAppointment, status: newStatus });
       }
     };
   
-    // Helper function to get status color classes
     const getStatusColor = (status) => {
       switch (status) {
         case "confirmed":
@@ -368,7 +361,6 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Manage Appointments</h1>
         
-        {/* Appointment List */}
         <div className="space-y-4">
           {appointments.map((appointment) => (
             <div key={appointment.id} className="bg-white p-6 rounded-xl shadow-sm">
@@ -421,7 +413,6 @@ export default function AdminDashboard() {
           ))}
         </div>
         
-        {/* Appointment Detail Modal */}
         {selectedAppointment && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl p-6 w-full max-w-md">
@@ -501,7 +492,6 @@ export default function AdminDashboard() {
     );
   };
 
-  // Komponen untuk manajemen payment
   const PaymentManagement = () => {
     const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
@@ -509,7 +499,6 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Manage Payments</h1>
         
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-6 rounded-xl shadow-sm">
             <p className="text-gray-500">Total Revenue</p>
@@ -529,7 +518,6 @@ export default function AdminDashboard() {
           </div>
         </div>
         
-        {/* Payment List */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -569,7 +557,6 @@ export default function AdminDashboard() {
     );
   };
 
-  // Komponen untuk manajemen news
   const NewsManagement = () => {
     const [newArticle, setNewArticle] = useState({
       title: "",
@@ -626,7 +613,7 @@ export default function AdminDashboard() {
     const handleEdit = (article) => {
       setEditingArticle({
         ...article,
-        content: article.content.join("\n\n") // Convert content array to string
+        content: article.content.join("\n\n")
       });
       setIsEditing(true);
     };
@@ -729,7 +716,6 @@ export default function AdminDashboard() {
           ))}
         </div>
         
-        {/* Create News Modal */}
         {isCreating && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -850,7 +836,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Edit News Modal */}
         {isEditing && editingArticle && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
