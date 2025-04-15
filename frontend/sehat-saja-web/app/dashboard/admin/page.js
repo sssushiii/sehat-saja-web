@@ -1,11 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import { MagnifyingGlass, User, Calendar, House, CurrencyDollar, Newspaper } from "@phosphor-icons/react/dist/ssr";
+import { MagnifyingGlass, User, Calendar, House, CurrencyDollar, Newspaper, ChartBar } from "@phosphor-icons/react/dist/ssr";
 import { Article } from "../../data/articles";
 
+import { Bar } from 'react-chartjs-2';
+import { 
+  Chart as ChartJS, 
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend 
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
+
+
 export default function AdminDashboard() {
-  const [activeView, setActiveView] = useState("users");
+  const [activeView, setActiveView] = useState("statistics");
   
   const [users, setUsers] = useState([
     {
@@ -28,6 +49,20 @@ export default function AdminDashboard() {
       role: "admin",
       email: "admin@gmail.com",
       status: "online"
+    },
+    {
+      id: 4,
+      name: "Dr. Siti Rahayu",
+      role: "doctor",
+      email: "siti@gmail.com",
+      status: "offline"
+    },
+    {
+      id: 5,
+      name: "Budi Santoso",
+      role: "patient",
+      email: "budi@gmail.com",
+      status: "online"
     }
   ]);
 
@@ -47,6 +82,14 @@ export default function AdminDashboard() {
       date: "2025-04-16",
       time: "14:30",
       status: "waiting"
+    },
+    {
+      id: 3,
+      patient: "Budi Santoso",
+      doctor: "Dr. Siti Rahayu",
+      date: "2025-04-17",
+      time: "09:15",
+      status: "completed"
     }
   ]);
 
@@ -66,6 +109,14 @@ export default function AdminDashboard() {
       amount: 200000,
       date: "2025-04-12",
       status: "pending"
+    },
+    {
+      id: "PAY-003",
+      patient: "Budi Santoso",
+      doctor: "Dr. Siti Rahayu",
+      amount: 175000,
+      date: "2025-04-15",
+      status: "completed"
     }
   ]);
 
@@ -87,7 +138,306 @@ export default function AdminDashboard() {
     });
   };
 
-  const UserManagement = () => {
+  const StatisticsDashboard = () => {
+    const dailyVisitors = [
+        { day: "Mon", visitors: 120 },
+        { day: "Tue", visitors: 150 },
+        { day: "Wed", visitors: 200 },
+        { day: "Thu", visitors: 180 },
+        { day: "Fri", visitors: 250 },
+        { day: "Sat", visitors: 100 },
+        { day: "Sun", visitors: 80 }
+      ];
+    
+      const chartData = {
+        labels: dailyVisitors.map(day => day.day),
+        datasets: [
+          {
+            label: 'Visitors',
+            data: dailyVisitors.map(day => day.visitors),
+            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+            borderColor: 'rgba(59, 130, 246, 1)',
+            borderWidth: 1,
+            borderRadius: 4,
+            hoverBackgroundColor: 'rgba(59, 130, 246, 1)',
+          }
+        ]
+      };
+    
+      const chartOptions = {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top',
+          },
+          title: {
+            display: true,
+            text: 'Weekly Visitors',
+            font: {
+              size: 16
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                return `${context.dataset.label}: ${context.raw}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 50
+            }
+          }
+        },
+        maintainAspectRatio: false
+      };
+
+    const totalPatients = users.filter(u => u.role === "patient").length;
+    const totalDoctors = users.filter(u => u.role === "doctor").length;
+    const totalAdmins = users.filter(u => u.role === "admin").length;
+    const onlineUsers = users.filter(u => u.status === "online").length;
+    const offlineUsers = users.filter(u => u.status === "offline").length;
+    
+    const totalAppointments = appointments.length;
+    const completedAppointments = appointments.filter(a => a.status === "completed").length;
+    const pendingAppointments = appointments.filter(a => a.status === "waiting").length;
+    
+    const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const completedPayments = payments.filter(p => p.status === "completed").length;
+    
+    const totalArticles = news.length;
+
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">Dashboard Statistics</h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500">Daily Visitors</p>
+                <p className="text-2xl font-bold">
+                  {dailyVisitors.reduce((sum, day) => sum + day.visitors, 0)}
+                </p>
+                <p className="text-sm text-green-600 mt-1">+12% from yesterday</p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-full">
+                <ChartBar size={24} className="text-blue-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500">Total Patients</p>
+                <p className="text-2xl font-bold">{totalPatients}</p>
+                <p className="text-sm text-green-600 mt-1">+5 new today</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-full">
+                <User size={24} className="text-green-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500">Total Doctors</p>
+                <p className="text-2xl font-bold">{totalDoctors}</p>
+                <p className="text-sm text-gray-500 mt-1">2 available now</p>
+              </div>
+              <div className="bg-purple-100 p-3 rounded-full">
+                <User size={24} className="text-purple-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500">Total Admins</p>
+                <p className="text-2xl font-bold">{totalAdmins}</p>
+                <p className="text-sm text-blue-600 mt-1">{onlineUsers} online</p>
+              </div>
+              <div className="bg-yellow-100 p-3 rounded-full">
+                <User size={24} className="text-yellow-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <h3 className="font-semibold mb-4">User Statistics</h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Online Users</span>
+                  <span className="text-sm font-medium">{onlineUsers}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-green-600 h-2.5 rounded-full" 
+                    style={{ width: `${(onlineUsers / users.length) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Offline Users</span>
+                  <span className="text-sm font-medium">{offlineUsers}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-gray-600 h-2.5 rounded-full" 
+                    style={{ width: `${(offlineUsers / users.length) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <div className="flex justify-between">
+                  <span className="text-sm">Total Users</span>
+                  <span className="text-sm font-bold">{users.length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <h3 className="font-semibold mb-4">Appointment Statistics</h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Completed</span>
+                  <span className="text-sm font-medium">{completedAppointments}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full" 
+                    style={{ width: `${(completedAppointments / totalAppointments) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Pending</span>
+                  <span className="text-sm font-medium">{pendingAppointments}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-yellow-400 h-2.5 rounded-full" 
+                    style={{ width: `${(pendingAppointments / totalAppointments) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <div className="flex justify-between">
+                  <span className="text-sm">Total Appointments</span>
+                  <span className="text-sm font-bold">{totalAppointments}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <h3 className="font-semibold mb-4">Payment Statistics</h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Completed Payments</span>
+                  <span className="text-sm font-medium">{completedPayments}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-green-600 h-2.5 rounded-full" 
+                    style={{ width: `${(completedPayments / payments.length) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium">Total Revenue</span>
+                  <span className="text-sm font-medium">{formatRupiah(totalRevenue)}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-purple-600 h-2.5 rounded-full" 
+                    style={{ width: "100%" }}
+                  ></div>
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <div className="flex justify-between">
+                  <span className="text-sm">Total Transactions</span>
+                  <span className="text-sm font-bold">{payments.length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+            <div className="h-80"> {/* Container dengan fixed height */}
+                <Bar data={chartData} options={chartOptions} />
+            </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <h3 className="font-semibold mb-4">Recent Appointments</h3>
+            <div className="space-y-3">
+              {appointments.slice(0, 3).map(app => (
+                <div key={app.id} className="border-b pb-2 last:border-0 last:pb-0">
+                  <p className="font-medium">{app.patient}</p>
+                  <p className="text-sm text-gray-600">with {app.doctor}</p>
+                  <p className="text-xs text-gray-500">{formatDate(app.date)} at {app.time}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <h3 className="font-semibold mb-4">Recent Payments</h3>
+            <div className="space-y-3">
+              {payments.slice(0, 3).map(payment => (
+                <div key={payment.id} className="border-b pb-2 last:border-0 last:pb-0">
+                  <p className="font-medium">{payment.patient}</p>
+                  <p className="text-sm text-gray-600">{formatRupiah(payment.amount)}</p>
+                  <p className="text-xs text-gray-500">{formatDate(payment.date)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm">
+            <h3 className="font-semibold mb-4">Recent Articles</h3>
+            <div className="space-y-3">
+              {news.slice(0, 3).map(article => (
+                <div key={article.id} className="border-b pb-2 last:border-0 last:pb-0">
+                  <p className="font-medium">{article.title}</p>
+                  <p className="text-sm text-gray-600">{article.author}</p>
+                  <p className="text-xs text-gray-500">{formatDate(article.date)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+    const UserManagement = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [category, setCategory] = useState("all");
     const [tempSearchTerm, setTempSearchTerm] = useState("");
@@ -678,7 +1028,6 @@ export default function AdminDashboard() {
           </button>
         </div>
         
-        {/* News List */}
         <div className="space-y-4">
           {news.map((article) => (
             <div key={article.id} className="bg-white p-6 rounded-xl shadow-sm">
@@ -961,11 +1310,12 @@ export default function AdminDashboard() {
 
   const renderActiveView = () => {
     switch(activeView) {
+      case "statistics": return <StatisticsDashboard />;
       case "users": return <UserManagement />;
       case "appointments": return <AppointmentManagement />;
       case "payments": return <PaymentManagement />;
       case "news": return <NewsManagement />;
-      default: return <UserManagement />;
+      default: return <StatisticsDashboard />;
     }
   };
 
@@ -980,48 +1330,55 @@ export default function AdminDashboard() {
           </div>
           <div className="nav flex flex-col">
             <nav className="space-y-2">
-                <button
+              <button
+                onClick={() => setActiveView("statistics")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                  activeView === "statistics" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+              >
+                <ChartBar size={20} className="mr-3" />
+                Statistics
+              </button>
+              <button
                 onClick={() => setActiveView("users")}
                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                    activeView === "users" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                  activeView === "users" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
                 }`}
-                >
+              >
                 <User size={20} className="mr-3" />
                 Manage Users
-                </button>
-                <button
+              </button>
+              <button
                 onClick={() => setActiveView("appointments")}
                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                    activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                  activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
                 }`}
-                >
+              >
                 <Calendar size={20} className="mr-3" />
                 Manage Appointments
-                </button>
-                <button
+              </button>
+              <button
                 onClick={() => setActiveView("payments")}
                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                    activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                  activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
                 }`}
-                >
+              >
                 <CurrencyDollar size={20} className="mr-3" />
                 Manage Payments
-                </button>
-                <button
+              </button>
+              <button
                 onClick={() => setActiveView("news")}
                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                    activeView === "news" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                  activeView === "news" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
                 }`}
-                >
+              >
                 <Newspaper size={20} className="mr-3" />
                 Manage News
-                </button>
+              </button>
             </nav>
             <a href="/" className="w-full mt-16 text-white p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center">
-                <House size={20} className="mr-3"/>
-                <h1>
-                    Home
-                </h1>
+              <House size={20} className="mr-3"/>
+              <h1>Home</h1>
             </a>
           </div>
         </div>
