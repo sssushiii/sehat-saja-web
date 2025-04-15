@@ -1,5 +1,5 @@
 "use client";
-
+import Link from "next/link";
 import { useState } from "react";
 import { MagnifyingGlass, User, Calendar, House, CurrencyDollar, Newspaper, ChartBar } from "@phosphor-icons/react/dist/ssr";
 import { Article } from "../../data/articles";
