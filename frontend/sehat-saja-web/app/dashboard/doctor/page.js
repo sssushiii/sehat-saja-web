@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CaretRight } from "@phosphor-icons/react/dist/ssr";
+import { CaretRight, User, Calendar, CurrencyDollar, UsersThree} from "@phosphor-icons/react/dist/ssr";
 
 export default function DoctorDashboard() {
   // State untuk menentukan tampilan aktif
@@ -476,34 +476,38 @@ export default function DoctorDashboard() {
           <nav className="space-y-2">
             <button
               onClick={() => setActiveView("schedule")}
-              className={`block w-full text-left p-3 rounded-lg transition ${
+              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
                 activeView === "schedule" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
               }`}
-            >
+            > 
+            <Calendar size={20} className="mr-3"/>
               Schedule Management
             </button>
             <button
               onClick={() => setActiveView("patients")}
-              className={`block w-full text-left p-3 rounded-lg transition ${
+              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
                 activeView === "patients" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
               }`}
             >
+              <UsersThree size={20} className="mr-3"/>
               Manage Patients
             </button>
             <button
               onClick={() => setActiveView("payments")}
-              className={`block w-full text-left p-3 rounded-lg transition ${
+              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
                 activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
               }`}
             >
+              <CurrencyDollar size={20} className="mr-3"/>
               Payment Records
             </button>
             <button
               onClick={() => setActiveView("account")}
-              className={`block w-full text-left p-3 rounded-lg transition ${
+              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
                 activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
               }`}
             >
+              <User size={20} className="mr-3"/>
               Account Settings
             </button>
           </nav>

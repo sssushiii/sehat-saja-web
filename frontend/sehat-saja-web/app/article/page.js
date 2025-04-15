@@ -59,7 +59,6 @@ export default function News() {
                   value={tempCategory}
                   onChange={(e) => setTempCategory(e.target.value)}
                 >
-                  {/* ...option list tetap sama... */}
                   <option value="all">All</option>
                   <option value="medication">Medication</option>
                   <option value="nursing">Nursing</option>
