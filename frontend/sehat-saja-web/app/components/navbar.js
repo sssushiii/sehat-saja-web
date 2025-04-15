@@ -59,7 +59,7 @@ export default function Navbar() {
 
       <div className="logreg flex flex-row h-full w-65 items-center justify-end gap-2 font-medium">
         <Link
-          href="/dashboard/doctor"
+          href="/sign-in"
           className={`px-4 py-2 transition-all h-[70%] flex items-center justify-center w-28 border-[1px] rounded-md
           ${scrolled ? "border-blue-500 hover:border-transparent text-blue-500 hover:bg-blue-500/50 hover:text-white" : "border-white text-white hover:border-transparent hover:bg-white/30"} duration-[1px]00`}
         >
