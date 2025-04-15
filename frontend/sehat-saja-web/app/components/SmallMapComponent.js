@@ -116,7 +116,7 @@ const SmallMapComponent = () => {
 
     useEffect(() => {
       fetchPlaces(map.getBounds());
-    }, []);
+    }, [map]);
 
     return null;
   };

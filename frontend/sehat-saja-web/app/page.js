@@ -110,7 +110,7 @@ export default function Home() {
                 Book a Meeting
               </h1>
               <h1>
-                Once you've chosen your doctor, select a convenient time slot and book your appointment directly on the website.
+                Once you`ve chosen your doctor, select a convenient time slot and book your appointment directly on the website.
               </h1>
             </div>
           </div>

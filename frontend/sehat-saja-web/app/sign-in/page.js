@@ -54,7 +54,7 @@ export default function SignIn() {
                                     <img src="/assets/icon_google.png" className="w-14 h-auto" alt="" />
                                 </div>
                                 <div className="dont-have w-full flex flex-row font-medium text-xs justify-center">
-                                    <h1 className="mr-1">Don't have account?</h1>
+                                    <h1 className="mr-1">Don`t have account?</h1>
                                     <Link href="/sign-up" className="font-semibold text-blue-500">
                                     Sign Up
                                     </Link>
@@ -63,6 +63,7 @@ export default function SignIn() {
                         </div>
                     </div>
                 </div>
+                
             <div className="first-right bg-transparent w-full h-full flex items-center">
                 <div className="second-left w-[75%] h-[85%] bg-blue-500 rounded-r-2xl relative">
                         <img className="absolute bottom-0 " src="/assets/doctor-sign.png" alt="" />
