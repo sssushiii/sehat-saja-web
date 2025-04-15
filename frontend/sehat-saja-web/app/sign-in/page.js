@@ -63,6 +63,7 @@ export default function SignIn() {
                         </div>
                     </div>
                 </div>
+                
             <div className="first-right bg-transparent w-full h-full flex items-center">
                 <div className="second-left w-[75%] h-[85%] bg-blue-500 rounded-r-2xl relative">
                         <img className="absolute bottom-0 " src="/assets/doctor-sign.png" alt="" />
