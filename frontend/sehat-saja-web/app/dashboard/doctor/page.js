@@ -568,45 +568,53 @@ export default function DoctorDashboard() {
               <p>{accountData.specialty}</p>
             </div>
           </div>
-          
-          <nav className="space-y-2">
-            <button
-              onClick={() => setActiveView("schedule")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "schedule" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            > 
-            <Calendar size={20} className="mr-3"/>
-              Schedule Management
-            </button>
-            <button
-              onClick={() => setActiveView("patients")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "patients" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <UsersThree size={20} className="mr-3"/>
-              Manage Patients
-            </button>
-            <button
-              onClick={() => setActiveView("payments")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <CurrencyDollar size={20} className="mr-3"/>
-              Payment Records
-            </button>
-            <button
-              onClick={() => setActiveView("account")}
-              className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-                activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-              }`}
-            >
-              <User size={20} className="mr-3"/>
-              Account Settings
-            </button>
-          </nav>
+          <div className="nav flex flex-col">
+
+            <nav className="space-y-2">
+              <button
+                onClick={() => setActiveView("schedule")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                  activeView === "schedule" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+              > 
+              <Calendar size={20} className="mr-3"/>
+                Schedule Management
+              </button>
+              <button
+                onClick={() => setActiveView("patients")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                  activeView === "patients" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+              >
+                <UsersThree size={20} className="mr-3"/>
+                Manage Patients
+              </button>
+              <button
+                onClick={() => setActiveView("payments")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                  activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+              >
+                <CurrencyDollar size={20} className="mr-3"/>
+                Payment Records
+              </button>
+              <button
+                onClick={() => setActiveView("account")}
+                className={`flex items-center w-full text-left p-3 rounded-lg transition ${
+                  activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
+                }`}
+              >
+                <User size={20} className="mr-3"/>
+                Account Settings
+              </button>
+            </nav>
+            <a href="/" className="w-full mt-16 text-white p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center">
+                <House size={20} className="mr-3"/>
+                <h1>
+                    Home
+                </h1>
+            </a>
+          </div>
         </div>
 
         <div className="w-[25%]"></div>
