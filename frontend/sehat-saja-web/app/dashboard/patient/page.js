@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { User, Calendar, CurrencyDollar, House} from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
 
 export default function PatientDashboard() {
   const [activeView, setActiveView] = useState("appointments");
@@ -487,12 +488,12 @@ export default function PatientDashboard() {
                 Account Settings
                 </button>
             </nav>
-            <a href="/" className="w-full mt-16 text-white p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center">
+            <Link href="/" className="w-full mt-16 text-white p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center">
                 <House size={20} className="mr-3"/>
                 <h1>
                     Home
                 </h1>
-            </a>
+            </Link>
           </div>
         </div>
 

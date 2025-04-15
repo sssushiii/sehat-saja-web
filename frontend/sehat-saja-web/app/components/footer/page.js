@@ -39,18 +39,18 @@ export default function Footer() {
                 <h1 className="font-semibold text-xl mb-4">
                 Navigation
                 </h1>
-                <a href="/" className="text-sm text-white font-light mb-3">
+                <Link href="/" className="text-sm text-white font-light mb-3">
                 Home
-                </a>
-                <a href="/appointment" className="text-sm text-white font-light mb-3">
+                </Link>
+                <Link href="/appointment" className="text-sm text-white font-light mb-3">
                 Appointment
-                </a>
-                <a href="/article" className="text-sm text-white font-light mb-3">
+                </Link>
+                <Link href="/article" className="text-sm text-white font-light mb-3">
                 Article
-                </a>
-                <a href="/maps" className="text-sm text-white font-light mb-3">
+                </Link>
+                <Link href="/maps" className="text-sm text-white font-light mb-3">
                 Maps
-                </a>
+                </Link>
             </div>
             </div>
             <div className="footer-bottom-right w-[28%] flex flex-col text-white">
