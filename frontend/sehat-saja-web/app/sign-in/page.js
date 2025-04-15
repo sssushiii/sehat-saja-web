@@ -54,7 +54,7 @@ export default function SignIn() {
                                     <img src="/assets/icon_google.png" className="w-14 h-auto" alt="" />
                                 </div>
                                 <div className="dont-have w-full flex flex-row font-medium text-xs justify-center">
-                                    <h1 className="mr-1">Don't have account?</h1>
+                                    <h1 className="mr-1">Don`t have account?</h1>
                                     <Link href="/sign-up" className="font-semibold text-blue-500">
                                     Sign Up
                                     </Link>

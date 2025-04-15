@@ -108,7 +108,7 @@ const MapComponent = () => {
 
     useEffect(() => {
       fetchPlaces(map.getBounds());
-    }, []);
+    }, [map]);
 
     return null;
   };
