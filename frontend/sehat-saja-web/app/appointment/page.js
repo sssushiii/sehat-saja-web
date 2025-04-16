@@ -67,7 +67,7 @@ export default function Appointment() {
           </form>
 
           <DoctorList
-            DoctorCount={60}
+            DoctorCount={20}
             filterSpecialization={specialization}
             searchName={searchName}
           />

@@ -47,7 +47,7 @@ export default function Home() {
               <h1 className="text-[1.3rem] mb-2 font-semibold">Health Consultation</h1>
               <h1 className="font-light text-sm">Get expert health advice and start your consultation now!</h1>
             </Link>
-            <Link href="/news" className="hospital-finder bg-white border-transparent hover:border-blue-500 border-[0.1rem] w-full h-full px-7 py-8 rounded-md shadow-[0px_0px_10px_rgba(0,0,0,0.2)] transition-all ease-in-out duration-200">
+            <Link href="/article" className="hospital-finder bg-white border-transparent hover:border-blue-500 border-[0.1rem] w-full h-full px-7 py-8 rounded-md shadow-[0px_0px_10px_rgba(0,0,0,0.2)] transition-all ease-in-out duration-200">
               <div className="circle1 bg-blue-50 w-fit p-3 flex justify-center items-center shadow-[0px_0px_10px_rgba(0,0,0,0.15)] rounded-full mb-5">
                 <img src="/assets/icon-article.png" className="w-8" alt=""/>
               </div>
