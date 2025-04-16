@@ -4,6 +4,26 @@ import { useState } from "react";
 import { MagnifyingGlass, User, Calendar, House, CurrencyDollar, Newspaper, ChartBar } from "@phosphor-icons/react/dist/ssr";
 import { Article } from "../../data/articles";
 
+// import { Bar } from 'react-chartjs-2';
+// import { 
+//   Chart as ChartJS, 
+//   CategoryScale,
+//   LinearScale,
+//   BarElement,
+//   Title,
+//   Tooltip,
+//   Legend 
+// } from 'chart.js';
+
+// ChartJS.register(
+//   CategoryScale,
+//   LinearScale,
+//   BarElement,
+//   Title,
+//   Tooltip,
+//   Legend
+// );
+
 import { Bar } from 'react-chartjs-2';
 import { 
   Chart as ChartJS, 
@@ -23,7 +43,6 @@ ChartJS.register(
   Tooltip,
   Legend
 );
-
 
 export default function AdminDashboard() {
   const [activeView, setActiveView] = useState("statistics");
