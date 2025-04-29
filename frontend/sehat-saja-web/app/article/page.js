@@ -24,7 +24,7 @@ export default function News() {
     <>
       <div className="all relative">
         <NavbarWhite />
-        <div className="top-news-slide bg-blue-50 text-black justify-center flex flex-col items-center w-full h-auto mt-16 pb-10 pt-20 px-[18rem]">
+        <div className="top-news-slide bg-blue-50 text-black justify-center flex flex-col items-center w-full h-auto mt-16 pb-10 pt-20 px-[14rem]">
           <ArticleSlider />
           <div className="news-top flex justify-center items-center">
             <div className="articles-child w-full h-auto flex flex-col items-center">
@@ -36,7 +36,7 @@ export default function News() {
           </div>
         </div>
 
-        <div className="bottom-news bg-blue-50 text-black justify-center flex flex-col items-center w-full h-auto py-20 pt-10 px-[18rem]">
+        <div className="bottom-news bg-blue-50 text-black justify-center flex flex-col items-center w-full h-auto py-20 pt-10 px-[14rem]">
           <form
             onSubmit={handleSubmit}
             className="w-full bg-white p-7 rounded-md border-gray-300 border-[0.1rem] mb-10 shadow-[0px_0px_10px_rgba(0,0,0,0.15)]"
