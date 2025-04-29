@@ -30,7 +30,7 @@ export default function SignUp() {
                                     Welcome to SehatSaja! create your account here
                                 </h1>
                             </div>
-                            <form action="/" className="flex flex-col justify-between h-full">
+                            <form action="/" className="flex flex-col justify-between h-full gap-2">
                                 <div className="email w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
                                     <EnvelopeSimple size={26} color="#858585" weight="bold" />
                                     <input type="email" name="email" className="h-full w-[80%] outline-none font-semibold text-sm" placeholder="Email Address" required />
@@ -38,10 +38,6 @@ export default function SignUp() {
                                 <div className="password w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
                                     <LockSimple size={26} color="#858585" weight="bold" />
                                     <input type="password" name="password" className="h-full w-[80%] outline-none font-semibold text-sm" placeholder="Password" required />
-                                </div>
-                                <div className="password-2 w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
-                                    <LockSimple size={26} color="#858585" weight="bold" />
-                                    <input type="password" name="confirmPassword" className="h-full w-[80%] outline-none font-semibold text-sm" placeholder="Confirm Password" required />
                                 </div>
                                 <div className="phone-2 w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
                                     <Phone size={26} color="#858585" weight="bold" />

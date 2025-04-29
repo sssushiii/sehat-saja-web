@@ -9,6 +9,7 @@
 // export default function AppointmentPage() {
 //   const { id } = useParams();
 //   const doctor = Doctors.find(d => d.id === Number(id));
+//   const [complaint, setComplaint] = useState(""); // State untuk complaint
 //   const [selectedDate, setSelectedDate] = useState(null);
 //   const [selectedTime, setSelectedTime] = useState(null);
 //   const [selectedPayment, setSelectedPayment] = useState("");
@@ -38,6 +39,15 @@
 
 //   const handleSubmit = (e) => {
 //     e.preventDefault();
+//     // Simpan data appointment termasuk complaint
+//     const appointmentData = {
+//       doctor: doctor.title,
+//       complaint,
+//       date: selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+//       time: selectedTime,
+//       payment: selectedPayment
+//     };
+//     console.log(appointmentData); // Untuk debugging
 //     setShowConfirmation(true);
 //   };
 
@@ -46,7 +56,7 @@
 //       <div className="all relative">
 //         <NavbarWhite />
 
-//         <div className="appointment-container bg-blue-50 text-black w-full min-h-screen pt-20 pb-20 px-[18rem]">
+//         <div className="appointment-container bg-blue-50 text-black w-full min-h-screen pt-20 pb-20 px-[14rem]">
 //           <div className="appointment-content bg-white p-10 rounded-md shadow-lg">
 //             <div className="doctor flex items-center mb-10">
 //                 <img 
@@ -61,6 +71,21 @@
 //             </div>
 
 //             <form onSubmit={handleSubmit}>
+//               {/* Tambahkan input complaint sebelum select date */}
+//               <div className="mb-10">
+//                 <h2 className="text-xl font-semibold mb-4">Your Complaint</h2>
+//                 <div className="relative">
+//                   <textarea
+//                     value={complaint}
+//                     onChange={(e) => setComplaint(e.target.value)}
+//                     placeholder="Describe your symptoms or health concerns..."
+//                     className="w-full p-4 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[120px]"
+//                     required
+//                   />
+//                   <p className="text-sm text-gray-500 mt-1">Please describe your condition in detail</p>
+//                 </div>
+//               </div>
+
 //               <div className="mb-10">
 //                 <h2 className="text-xl font-semibold mb-4">Select Date</h2>
 //                 <div className="grid grid-cols-7 gap-3">
@@ -79,6 +104,7 @@
 //                             ? 'border-blue-500 bg-blue-50'
 //                             : 'border-gray-200 hover:border-blue-300'
 //                         }`}
+//                         disabled={!complaint} // Disable jika complaint belum diisi
 //                       >
 //                         <div className="text-sm">{dayName}</div>
 //                         <div className="font-semibold text-lg">{dateNum}</div>
@@ -116,6 +142,7 @@
 //                   <h3 className="font-semibold text-lg mb-3">Appointment Summary</h3>
 //                   <div className="space-y-2 mb-5 text-gray-700">
 //                     <p><span className="font-medium">Doctor:</span> {doctor.title}</p>
+//                     <p><span className="font-medium">Complaint:</span> {complaint}</p>
 //                     <p><span className="font-medium">Date:</span> {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
 //                     <p><span className="font-medium">Time:</span> {selectedTime}</p>
                     
@@ -188,6 +215,7 @@
               
 //               <div className="w-full space-y-2 mb-6 text-left">
 //                 <p><span className="font-medium">Doctor:</span> {doctor.title}</p>
+//                 <p><span className="font-medium">Complaint:</span> {complaint}</p>
 //                 <p><span className="font-medium">Date:</span> {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
 //                 <p><span className="font-medium">Time:</span> {selectedTime}</p>
 //                 <p><span className="font-medium">Payment Method:</span> {selectedPayment.toUpperCase()}</p>
@@ -219,11 +247,15 @@ import Link from "next/link";
 export default function AppointmentPage() {
   const { id } = useParams();
   const doctor = Doctors.find(d => d.id === Number(id));
-  const [complaint, setComplaint] = useState(""); // State untuk complaint
+  const [complaint, setComplaint] = useState("");
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
+
+  if (!doctor) {
+    return <div>Doctor not found</div>;
+  }
 
   const generateDates = () => {
     const dates = [];
@@ -249,7 +281,11 @@ export default function AppointmentPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Simpan data appointment termasuk complaint
+    if (!selectedDate || !selectedTime || !selectedPayment || !complaint) {
+      alert("Please complete all fields");
+      return;
+    }
+
     const appointmentData = {
       doctor: doctor.title,
       complaint,
@@ -257,7 +293,8 @@ export default function AppointmentPage() {
       time: selectedTime,
       payment: selectedPayment
     };
-    console.log(appointmentData); // Untuk debugging
+    
+    console.log(appointmentData);
     setShowConfirmation(true);
   };
 
@@ -266,22 +303,21 @@ export default function AppointmentPage() {
       <div className="all relative">
         <NavbarWhite />
 
-        <div className="appointment-container bg-blue-50 text-black w-full min-h-screen pt-20 pb-20 px-[18rem]">
-          <div className="appointment-content bg-white p-10 rounded-md shadow-lg">
-            <div className="doctor flex items-center mb-10">
-                <img 
-                  src={`${doctor.image}`} 
-                  alt={`${doctor.title}`} 
-                  className="rounded-full mr-5 h-32 object-cover aspect-square object-top" 
-                />
-                <div className="">
-                    <h1 className="text-3xl font-bold mb-2">{doctor.title}</h1>
-                    <p className="text-gray-600">{doctor.specialization.join(", ")}</p>
-                </div>
+        <div className="appointment-container bg-blue-50 text-black w-full min-h-screen pt-20 pb-20 px-4 sm:px-[14rem]">
+          <div className="appointment-content bg-white p-6 sm:p-10 rounded-md shadow-lg">
+            <div className="doctor flex flex-col sm:flex-row items-center mb-10">
+              <img 
+                src={`${doctor.image}`} 
+                alt={`${doctor.title}`} 
+                className="rounded-full mb-4 sm:mb-0 sm:mr-5 h-32 object-cover aspect-square object-top" 
+              />
+              <div className="text-center sm:text-left">
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2">{doctor.title}</h1>
+                <p className="text-gray-600">{doctor.specialization.join(", ")}</p>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit}>
-              {/* Tambahkan input complaint sebelum select date */}
               <div className="mb-10">
                 <h2 className="text-xl font-semibold mb-4">Your Complaint</h2>
                 <div className="relative">
@@ -298,7 +334,7 @@ export default function AppointmentPage() {
 
               <div className="mb-10">
                 <h2 className="text-xl font-semibold mb-4">Select Date</h2>
-                <div className="grid grid-cols-7 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 sm:gap-3">
                   {availableDates.map((date, idx) => {
                     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
                     const dateNum = date.getDate();
@@ -308,16 +344,18 @@ export default function AppointmentPage() {
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => setSelectedDate(date)}
-                        className={`p-3 rounded-lg border text-center ${
+                        onClick={() => {
+                          setSelectedDate(date);
+                          setSelectedTime(null); // Reset waktu saat tanggal berubah
+                        }}
+                        className={`p-2 sm:p-3 rounded-lg border text-center transition-colors ${
                           selectedDate?.getDate() === date.getDate()
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
                             : 'border-gray-200 hover:border-blue-300'
                         }`}
-                        disabled={!complaint} // Disable jika complaint belum diisi
                       >
-                        <div className="text-sm">{dayName}</div>
-                        <div className="font-semibold text-lg">{dateNum}</div>
+                        <div className="text-xs sm:text-sm">{dayName}</div>
+                        <div className="font-semibold text-base sm:text-lg">{dateNum}</div>
                         <div className="text-xs text-gray-500">{month}</div>
                       </button>
                     );
@@ -328,15 +366,15 @@ export default function AppointmentPage() {
               {selectedDate && (
                 <div className="mb-10">
                   <h2 className="text-xl font-semibold mb-4">Select Time</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {availableTimes.map((time, idx) => (
                       <button
                         key={idx}
                         type="button"
                         onClick={() => setSelectedTime(time)}
-                        className={`p-3 rounded-lg border text-center ${
+                        className={`p-3 rounded-lg border text-center transition-colors ${
                           selectedTime === time
-                            ? 'border-blue-500 bg-blue-50'
+                            ? 'border-blue-500 bg-blue-50 text-blue-600'
                             : 'border-gray-200 hover:border-blue-300'
                         }`}
                       >
@@ -358,40 +396,21 @@ export default function AppointmentPage() {
                     
                     <div className="mt-4">
                       <h4 className="font-medium mb-2">Payment Method:</h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPayment("mandiri")}
-                          className={`p-2 rounded-lg border text-center ${
-                            selectedPayment === "mandiri"
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-blue-300'
-                          }`}
-                        >
-                          Mandiri
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPayment("bca")}
-                          className={`p-2 rounded-lg border text-center ${
-                            selectedPayment === "bca"
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-blue-300'
-                          }`}
-                        >
-                          BCA
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPayment("bri")}
-                          className={`p-2 rounded-lg border text-center ${
-                            selectedPayment === "bri"
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-blue-300'
-                          }`}
-                        >
-                          BRI
-                        </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {["mandiri", "bca", "bri"].map((method) => (
+                          <button
+                            key={method}
+                            type="button"
+                            onClick={() => setSelectedPayment(method)}
+                            className={`p-2 rounded-lg border text-center capitalize transition-colors ${
+                              selectedPayment === method
+                                ? 'border-blue-500 bg-blue-50 text-blue-600'
+                                : 'border-gray-200 hover:border-blue-300'
+                            }`}
+                          >
+                            {method}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -415,12 +434,16 @@ export default function AppointmentPage() {
         <Footer />
       </div>
 
-      {/* Confirmation Popup */}
       {showConfirmation && (
         <div className="fixed inset-0 text-black z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white w-[25rem] md:w-[30rem] rounded-xl p-6 shadow-lg relative">
+          <div className="bg-white w-[90%] sm:w-[25rem] md:w-[30rem] rounded-xl p-6 shadow-lg relative">
             <div className="flex flex-col items-center text-center">
-              <h2 className="text-2xl font-semibold mb-4">All done!</h2>
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-semibold mb-4">Appointment Confirmed!</h2>
               <p className="mb-6">Thank you for trusting us</p>
               
               <div className="w-full space-y-2 mb-6 text-left">
@@ -433,9 +456,9 @@ export default function AppointmentPage() {
 
               <Link 
                 href="/"
-                className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+                className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition-colors"
               >
-                Go back
+                Back to Home
               </Link>
             </div>
           </div>

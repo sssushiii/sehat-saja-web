@@ -22,7 +22,7 @@ export default function Appointment() {
     <>
       <div className="all relative">
         <NavbarWhite />
-        <div className="bottom-news bg-blue-50 text-black justify-center flex flex-col items-center w-full h-auto mt-16 py-20 px-[18rem]">
+        <div className="bottom-news bg-blue-50 text-black justify-center flex flex-col items-center w-full h-auto mt-16 py-20 px-[14rem]">
           <form onSubmit={handleSubmit} className="w-full bg-white p-7 rounded-md border-gray-300 border-[0.1rem] mb-10 shadow-[0px_0px_10px_rgba(0,0,0,0.15)]">
             <div className="w-full h-[3.5rem] mb-4">
               <input

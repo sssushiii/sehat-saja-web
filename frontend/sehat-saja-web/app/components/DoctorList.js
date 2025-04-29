@@ -36,7 +36,7 @@ const DoctorList = ({
 
   return (
     <>
-      <div className="Doctor-bottom w-full h-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 justify-between gap-5">
+      <div className="Doctor-bottom w-full h-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 justify-between gap-4">
         {filteredDoctors.map((DoctorItem, index) => (
           <div key={index} onClick={() => setSelectedDoctor(DoctorItem)}>
             <DoctorCard {...DoctorItem} />

@@ -2,14 +2,14 @@ import Link from "next/link";
 import Image from "next/image";
 import Footer from "./components/footer/page";
 import Navbar from "@/components/navbar";
-import TopNews from "./components/TopArticle";
+import TopArticle from "./components/TopArticle";
 import SmallClientWrapper from "./components/SmallClientWrapper";
 
 export default function Home() {
   return (
     <>
     <div className="top bg-[url('/assets/bg-all-sign.jpg')] bg-cover relative">
-      <div className="w-full h-[35rem] px-[18rem] bg-blue-600/40 backdrop-blur-md text-white relative">
+      <div className="w-full h-[35rem] px-[14rem] bg-blue-600/40 backdrop-blur-md text-white relative">
         <div className="isi h-full flex flex-col justify-center absolute z-20">
           <div className="title-head text-7xl font-semibold">
             <h1 className="">Your Path<br></br>to Better<br></br>Health</h1>
@@ -23,7 +23,7 @@ export default function Home() {
       <Navbar/>
     </div>
     
-    <div className="services bg-blue-50 py-32 px-[18rem] flex justify-center items-center text-black">
+    <div className="services bg-blue-50 py-32 px-[14rem] flex justify-center items-center text-black">
       <div className="child-services p-0 w-full">
         <div className="services-top flex flex-row w-full justify-between items-center mb-10">
           <div className="services-top-left">
@@ -66,7 +66,7 @@ export default function Home() {
       </div>
     </div>
 
-    <div className="how bg-white text-black py-32 px-[18rem] flex justify-center items-center">
+    <div className="how bg-white text-black py-32 px-[14rem] flex justify-center items-center">
       <div className="how-child">
         <div className="how-child-top flex flex-col text-center mb-10">
           <h1 className="text-3xl font-semibold mb-1">
@@ -156,7 +156,7 @@ export default function Home() {
       </div>
     </div>
 
-    <div className="articles text-black bg-blue-50 py-32 px-[18rem] flex justify-center items-center">
+    <div className="articles text-black bg-blue-50 py-32 px-[14rem] flex justify-center items-center">
       <div className="articles-child w-full h-full flex flex-col items-center">
         <div className="articles-top flex flex-row w-full justify-between items-center mb-10">
           <div className="articles-top-left">
@@ -171,11 +171,11 @@ export default function Home() {
             <h1>See All</h1>
           </Link>
         </div>
-        <TopNews/>
+        <TopArticle/>
 
       </div>
     </div>
-    <div className="map bg-white text-black py-32 px-[18rem] flex justify-center items-center w-full">
+    <div className="map bg-white text-black py-32 px-[14rem] flex justify-center items-center w-full">
       <div className="map-child w-full">
         <div className="map-top flex flex-row w-full justify-between items-center mb-10">
           <div className="map-top-left">

@@ -20,7 +20,7 @@ export default function ArticlePage({ params }) {
       <div className="all relative">
         <NavbarWhite />
         
-        <div className="article-container bg-blue-50 text-black w-full min-h-screen pt-20 pb-20 px-[18rem]">
+        <div className="article-container bg-blue-50 text-black w-full min-h-screen pt-20 pb-20 px-[14rem]">
           <div className="article-content bg-white p-10 rounded-md shadow-lg">
             <div className="article-header mb-8">
               <h1 className="text-3xl font-bold mb-4">{article.title}</h1>
