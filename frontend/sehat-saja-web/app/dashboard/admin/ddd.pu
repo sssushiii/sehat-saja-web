@@ -1,0 +1,30 @@
+@startuml
+title Sequence Diagram - Melihat Histori Pembayaran
+
+actor KaryawanOperasional as "Karyawan Operasional"
+boundary HalamanHistoriPembayaran as "Halaman Histori Pembayaran"
+control TransaksiController as "TransaksiController"
+database DatabaseTransaksi as "Database Transaksi"
+
+KaryawanOperasional -> HalamanHistoriPembayaran : Membuka halaman histori pembayaran
+HalamanHistoriPembayaran -> TransaksiController : Request daftar transaksi
+TransaksiController -> DatabaseTransaksi : Query riwayat pembayaran
+DatabaseTransaksi --> TransaksiController : Return daftar transaksi
+TransaksiController --> HalamanHistoriPembayaran : Tampilkan daftar riwayat
+
+KaryawanOperasional -> HalamanHistoriPembayaran : Memilih opsi filter pencarian
+HalamanHistoriPembayaran -> TransaksiController : Kirim kriteria filter
+TransaksiController -> DatabaseTransaksi : Query transaksi dengan filter
+DatabaseTransaksi --> TransaksiController : Return hasil pencarian
+TransaksiController --> HalamanHistoriPembayaran : Tampilkan hasil filter
+
+KaryawanOperasional -> HalamanHistoriPembayaran : Memilih satu riwayat pembayaran
+HalamanHistoriPembayaran -> TransaksiController : Request detail transaksi
+TransaksiController -> DatabaseTransaksi : Query detail transaksi
+DatabaseTransaksi --> TransaksiController : Return detail transaksi
+TransaksiController --> HalamanHistoriPembayaran : Tampilkan informasi detail
+
+KaryawanOperasional -> HalamanHistoriPembayaran : Menutup detail transaksi
+HalamanHistoriPembayaran --> KaryawanOperasional : Kembali ke daftar riwayat
+
+@enduml
