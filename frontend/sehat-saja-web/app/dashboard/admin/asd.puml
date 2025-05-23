@@ -1,0 +1,44 @@
+@startuml
+title Sequence Diagram - Melakukan Proses Pembayaran
+
+actor Customer
+boundary HalamanPembayaran
+control PaymentController
+control PaymentValidator
+database DatabaseKeuangan
+
+Customer -> HalamanPembayaran : Membuka halaman pembayaran
+HalamanPembayaran -> PaymentController : Minta metode pembayaran
+PaymentController -> HalamanPembayaran : Tampilkan metode pembayaran
+
+Customer -> HalamanPembayaran : Memilih metode pembayaran
+HalamanPembayaran -> PaymentController : Kirim pilihan metode
+PaymentController -> HalamanPembayaran : Tampilkan halaman pembayaran
+
+Customer -> HalamanPembayaran : Melakukan pembayaran
+HalamanPembayaran -> PaymentController : Kirim data pembayaran
+PaymentController -> PaymentValidator : Validasi pembayaran
+
+alt Metode pembayaran valid
+    PaymentValidator --> PaymentController : Validasi berhasil
+    PaymentController -> HalamanPembayaran : Tampilkan pesan berhasil
+    PaymentController -> DatabaseKeuangan : Update histori pembayaran
+    PaymentController -> DatabaseKeuangan : Update data keuangan
+else Metode pembayaran tidak tersedia
+    PaymentValidator --> PaymentController : Metode tidak tersedia
+    PaymentController -> HalamanPembayaran : Tampilkan pesan error
+
+    Customer -> HalamanPembayaran : Memilih metode lain
+    HalamanPembayaran -> PaymentController : Kirim metode baru
+    PaymentController -> HalamanPembayaran : Tampilkan ulang halaman pembayaran
+
+    Customer -> HalamanPembayaran : Melakukan pembayaran
+    HalamanPembayaran -> PaymentController : Kirim ulang data pembayaran
+    PaymentController -> PaymentValidator : Validasi ulang
+    PaymentValidator --> PaymentController : Validasi berhasil
+    PaymentController -> HalamanPembayaran : Tampilkan pesan berhasil
+    PaymentController -> DatabaseKeuangan : Update histori pembayaran
+    PaymentController -> DatabaseKeuangan : Update data keuangan
+end
+
+@enduml

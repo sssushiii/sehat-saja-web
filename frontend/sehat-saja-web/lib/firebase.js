@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -13,7 +13,16 @@ const firebaseConfig = {
   measurementId: "G-FNKEHVYS5W"
 };
 
-const app = initializeApp(firebaseConfig);
+let app;
+
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApps()[0]; 
+}
+
+export { app };
+
 const analytics = typeof window !== "undefined" ? getAnalytics(app) : null;
 
 export const auth = getAuth(app);

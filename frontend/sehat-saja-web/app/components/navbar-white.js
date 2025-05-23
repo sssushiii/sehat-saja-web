@@ -23,7 +23,7 @@ export default function NavbarWhite() {
           const userData = docSnapshot.data();
           setUser({
             email: currentUser.email,
-            displayName: currentUser.displayName,
+            name: userData.name || "",
             fullName: userData.fullName || "",
             photoURL: currentUser.photoURL || "",
           });
@@ -67,7 +67,11 @@ export default function NavbarWhite() {
           >
             <h1
               className={`group-hover:font-semibold duration-200 transition-all
-              ${pathname === item.href ? "font-bold text-blue-500" : "text-blue-500"}`}
+              ${
+                pathname === item.href
+                  ? "font-bold text-blue-500"
+                  : "text-blue-500"
+              }`}
             >
               {item.name}
             </h1>
@@ -86,7 +90,7 @@ export default function NavbarWhite() {
             />
             <div className="text-sm text-right hidden md:block">
               <p className="text-black font-semibold">
-                {user.displayName || user.fullName || "User"}
+                {user.name || "User"}
               </p>
               <p className="text-gray-600 text-xs">{user.email}</p>
             </div>
