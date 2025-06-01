@@ -1,0 +1,36 @@
+@startuml
+left to right direction
+
+actor "User" as user
+actor "Admin" as admin
+rectangle "SISTEM INFORMASI WEFARM" as sistem {
+
+}
+
+' Aliran data USER -> SISTEM
+user --> sistem : "Login (email, password)"
+user --> sistem : "Daftar Akun (username, email, password, no.telp)"
+user --> sistem : "Input Data Tanaman (id_user_plant, status, progress)"
+user --> sistem : "Update Progress Harian (dailies_status, target_status)"
+user --> sistem : "Tambahkan Bookmark (id_plant)"
+user --> sistem : "Lihat Panduan Tanaman (guides, targets)"
+user --> sistem : "Cari Produk (products)"
+
+' Aliran data SISTEM -> USER
+sistem --> user : "Notifikasi Progress (dailies_status, target_status)"
+sistem --> user : "Konfirmasi Bookmark (id_plant, plant_name)"
+sistem --> user : "Rekomendasi Produk (link, nama_produk)"
+sistem --> user : "Laporan Progress (progress, grafik pertumbuhan)"
+
+' Aliran data ADMIN -> SISTEM
+admin --> sistem : "Login Admin (email_admin, password)"
+admin --> sistem : "Kelola Data Tanaman (tambah/edit/hapus: plant_name, guides, dailies)"
+admin --> sistem : "Update Informasi Produk (products, link)"
+admin --> sistem : "Generate Laporan User (id_user, aktivitas)"
+
+' Aliran data SISTEM -> ADMIN
+sistem --> admin : "Data Statistik (total user, aktifitas terkini)"
+sistem --> admin : "Konfirmasi Perubahan Data (plant_updated_at)"
+sistem --> admin : "Laporan PDF/Excel (user_plants, bookmarks)"
+
+@enduml
