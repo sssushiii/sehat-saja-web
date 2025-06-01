@@ -1,2490 +1,1154 @@
-// "use client";
-
-// import { useState, useEffect } from "react";
-// import { User, Calendar, CurrencyDollar, House} from "@phosphor-icons/react/dist/ssr";
-// import Link from "next/link";
-// import { getAuth, onAuthStateChanged } from "firebase/auth";
-// import { getFirestore, doc, getDoc } from "firebase/firestore";
-// import { app } from "../../../lib/firebase";
-
-// export default function PatientDashboard() {
-//   const [activeView, setActiveView] = useState("appointments");
-//   const [loading, setLoading] = useState(true);
-//   const [userData, setUserData] = useState(null);
-  
-//   const [appointments, setAppointments] = useState([
-//     {
-//       id: 1,
-//       doctor: "Dr. Mulyadi Akbar Denüst",
-//       date: "2025-04-15",
-//       time: "10:00",
-//       status: "confirmed",
-//       complaint: "Regular checkup"
-//     },
-//     {
-//       id: 2,
-//       doctor: "Dr. Hakim Ismail",
-//       date: "2025-04-20",
-//       time: "14:30",
-//       status: "completed",
-//       complaint: "Headache consultation"
-//     },
-//     {
-//       id: 3,
-//       doctor: "Dr. Sarah Wijaya",
-//       date: "2025-05-02",
-//       time: "09:15",
-//       status: "cancelled",
-//       complaint: "Annual physical exam"
-//     }
-//   ]);
-
-//   const [payments, setPayments] = useState([
-//     {
-//       id: "PAY-001",
-//       appointment: "Checkup with Dr. Mulyadi",
-//       amount: 40000,
-//       date: "2025-04-15",
-//       status: "completed",
-//       method: "BCA Virtual Account"
-//     },
-//     {
-//       id: "PAY-002",
-//       appointment: "Consultation with Dr. Hakim",
-//       amount: 45000,
-//       date: "2025-04-20",
-//       status: "completed",
-//       method: "GOPAY"
-//     },
-//     {
-//       id: "PAY-003",
-//       appointment: "Lab Test Package",
-//       amount: 45000,
-//       date: "2025-04-25",
-//       status: "pending",
-//       method: "Credit Card"
-//     }
-//   ]);
-
-//   const [accountData, setAccountData] = useState({
-//     name: "",
-//     email: "",
-//     phone: "",
-//     birthDate: "",
-//     gender: ""
-//   });
-
-//   // Firebase authentication and user data fetching
-//   useEffect(() => {
-//     const auth = getAuth(app);
-//     const db = getFirestore(app);
-    
-//     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-//       if (user) {
-//         try {
-//           // Get user document from Firestore
-//           const userDocRef = doc(db, "users", user.uid);
-//           const userDocSnap = await getDoc(userDocRef);
-          
-//           if (userDocSnap.exists()) {
-//             const userFirestoreData = userDocSnap.data();
-//             setUserData(userFirestoreData);
-            
-//             // Update account data with Firestore data
-//             setAccountData({
-//               name: userFirestoreData.name || user.displayName || "User",
-//               email: userFirestoreData.email || user.email,
-//               phone: userFirestoreData.phone || "",
-//               birthDate: userFirestoreData.birthDate || "1999-07-15",
-//               gender: userFirestoreData.gender || ""
-//             });
-//           } else {
-//             console.log("No user document found!");
-//           }
-//         } catch (error) {
-//           console.error("Error fetching user data:", error);
-//         }
-//       } else {
-//         // User is signed out, redirect to login page
-//         window.location.href = "/login";
-//       }
-//       setLoading(false);
-//     });
-
-//     // Cleanup subscription on unmount
-//     return () => unsubscribe();
-//   }, []);
-
-//   const formatDate = (dateStr) => {
-//     const date = new Date(dateStr);
-//     return date.toLocaleDateString("id-ID", {
-//       weekday: 'long',
-//       day: 'numeric',
-//       month: 'long',
-//       year: 'numeric'
-//     });
-//   };
-
-//   const formatRupiah = (value) =>
-//     new Intl.NumberFormat("id-ID", {
-//       style: "currency",
-//       currency: "IDR",
-//       minimumFractionDigits: 0,
-//     }).format(value);
-
-//   const AppointmentManagement = () => {
-//     const [selectedAppointment, setSelectedAppointment] = useState(null);
-
-//     const handleCancel = (appointmentId) => {
-//       if (window.confirm("Are you sure you want to cancel this appointment?")) {
-//         const updated = appointments.map(a => 
-//           a.id === appointmentId ? { ...a, status: "cancelled" } : a
-//         );
-//         setAppointments(updated);
-//       }
-//     };
-
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">My Appointments</h1>
-        
-//         <div className="space-y-4">
-//           {appointments.map((appointment) => (
-//             <div key={appointment.id} className="bg-white p-6 rounded-xl shadow-sm">
-//               <div className="flex justify-between items-start">
-//                 <div>
-//                   <h3 className="font-semibold text-lg">With {appointment.doctor}</h3>
-//                   <p className="text-gray-600">{formatDate(appointment.date)} at {appointment.time}</p>
-//                   <p className="mt-2 text-gray-700">Complaint: {appointment.complaint}</p>
-//                 </div>
-//                 <div className="flex items-center space-x-3">
-//                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-//                     appointment.status === "confirmed" ? "bg-blue-100 text-blue-800" :
-//                     appointment.status === "completed" ? "bg-green-100 text-green-800" :
-//                     "bg-gray-100 text-gray-800"
-//                   }`}>
-//                     {appointment.status}
-//                   </span>
-//                   <button
-//                     onClick={() => setSelectedAppointment(appointment)}
-//                     className="text-blue-600 hover:text-blue-800"
-//                   >
-//                     Details
-//                   </button>
-//                 </div>
-//               </div>
-              
-//               {appointment.status === "confirmed" && (
-//                 <div className="mt-4">
-//                   <button
-//                     onClick={() => handleCancel(appointment.id)}
-//                     className="px-3 py-1 text-sm rounded bg-red-100 text-red-800 hover:bg-red-200"
-//                   >
-//                     Cancel Appointment
-//                   </button>
-//                 </div>
-//               )}
-//             </div>
-//           ))}
-//         </div>
-        
-//         {selectedAppointment && (
-//           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//             <div className="bg-white rounded-xl p-6 w-full max-w-md">
-//               <div className="flex justify-between items-center mb-4">
-//                 <h2 className="text-xl font-bold">Appointment Details</h2>
-//                 <button
-//                   onClick={() => setSelectedAppointment(null)}
-//                   className="text-gray-500 hover:text-gray-700"
-//                 >
-//                   ✕
-//                 </button>
-//               </div>
-              
-//               <div className="space-y-3">
-//                 <div>
-//                   <p className="text-sm text-gray-500">Doctor</p>
-//                   <p className="font-medium">{selectedAppointment.doctor}</p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Date & Time</p>
-//                   <p className="font-medium">
-//                     {formatDate(selectedAppointment.date)} at {selectedAppointment.time}
-//                   </p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Complaint</p>
-//                   <p className="font-medium">{selectedAppointment.complaint}</p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Status</p>
-//                   <p className={`font-medium px-2 py-1 inline-block rounded ${
-//                     selectedAppointment.status === "confirmed" ? "bg-blue-100 text-blue-800" :
-//                     selectedAppointment.status === "completed" ? "bg-green-100 text-green-800" :
-//                     "bg-gray-100 text-gray-800"
-//                   }`}>
-//                     {selectedAppointment.status}
-//                   </p>
-//                 </div>
-                
-//                 <div className="pt-4">
-//                   <button
-//                     onClick={() => setSelectedAppointment(null)}
-//                     className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                   >
-//                     Close
-//                   </button>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//     );
-//   };
-
-//   const PaymentHistory = () => {
-//     const totalSpent = payments.reduce((sum, payment) => sum + payment.amount, 0);
-
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">Payment History</h1>
-        
-//         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Total Spent</p>
-//             <p className="text-2xl font-bold">{formatRupiah(totalSpent)}</p>
-//           </div>
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Completed Payments</p>
-//             <p className="text-2xl font-bold">
-//               {payments.filter(p => p.status === "completed").length}
-//             </p>
-//           </div>
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Pending Payments</p>
-//             <p className="text-2xl font-bold">
-//               {payments.filter(p => p.status === "pending").length}
-//             </p>
-//           </div>
-//         </div>
-        
-//         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-//           <table className="min-w-full divide-y divide-gray-200">
-//             <thead className="bg-gray-50">
-//               <tr>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment ID</th>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-//               </tr>
-//             </thead>
-//             <tbody className="bg-white divide-y divide-gray-200">
-//               {payments.map((payment) => (
-//                 <tr key={payment.id} className="hover:bg-gray-50">
-//                   <td className="px-6 py-4 whitespace-nowrap">
-//                     <div className="font-medium">{payment.id}</div>
-//                   </td>
-//                   <td className="px-6 py-4 whitespace-nowrap">{payment.appointment}</td>
-//                   <td className="px-6 py-4 whitespace-nowrap">{formatRupiah(payment.amount)}</td>
-//                   <td className="px-6 py-4 whitespace-nowrap">{formatDate(payment.date)}</td>
-//                   <td className="px-6 py-4 whitespace-nowrap">
-//                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-//                       payment.status === "completed" ? "bg-green-100 text-green-800" :
-//                       "bg-yellow-100 text-yellow-800"
-//                     }`}>
-//                       {payment.status}
-//                     </span>
-//                   </td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//         </div>
-//       </div>
-//     );
-//   };
-
-//   const AccountSettings = () => {
-//     const [isEditing, setIsEditing] = useState(false);
-//     const [editData, setEditData] = useState({ ...accountData });
-  
-//     const [currentPassword, setCurrentPassword] = useState("");
-//     const [newPassword, setNewPassword] = useState("");
-//     const [confirmPassword, setConfirmPassword] = useState("");
-  
-//     useEffect(() => {
-//       if (userData) {
-//         setEditData({ ...accountData });
-//       }
-//     }, [accountData]);
-  
-//     const handleSave = async () => {
-//       try {
-//         // In a real application, you would update the user data in Firestore here
-//         // const auth = getAuth(app);
-//         // const db = getFirestore(app);
-//         // const userDocRef = doc(db, "users", auth.currentUser.uid);
-//         // await updateDoc(userDocRef, {
-//         //   name: editData.name,
-//         //   email: editData.email,
-//         //   phone: editData.phone,
-//         //   birthDate: editData.birthDate,
-//         //   gender: editData.gender
-//         // });
-        
-//         setAccountData(editData);
-//         setIsEditing(false);
-//         alert("Profile updated successfully!");
-//       } catch (error) {
-//         console.error("Error updating profile:", error);
-//         alert("Failed to update profile.");
-//       }
-//     };
-  
-//     const handleChangePassword = async () => {
-//       if (!currentPassword || !newPassword || !confirmPassword) {
-//         alert("Please fill in all password fields.");
-//         return;
-//       }
-  
-//       if (newPassword !== confirmPassword) {
-//         alert("New passwords do not match.");
-//         return;
-//       }
-  
-//       try {
-//         // In a real application, you would update the password in Firebase Auth here
-//         // const auth = getAuth(app);
-//         // const user = auth.currentUser;
-//         // const credential = EmailAuthProvider.credential(user.email, currentPassword);
-//         // await reauthenticateWithCredential(user, credential);
-//         // await updatePassword(user, newPassword);
-        
-//         alert("Password changed successfully!");
-//         setCurrentPassword("");
-//         setNewPassword("");
-//         setConfirmPassword("");
-//       } catch (error) {
-//         console.error("Error changing password:", error);
-//         alert("Failed to change password. Please check your current password.");
-//       }
-//     };
-  
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">Account Settings</h1>
-  
-//         {!isEditing ? (
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <div className="space-y-4">
-//               <div>
-//                 <p className="text-sm text-gray-500">Full Name</p>
-//                 <p className="font-medium">{accountData.name}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Email</p>
-//                 <p className="font-medium">{accountData.email}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Phone Number</p>
-//                 <p className="font-medium">{accountData.phone}</p>
-//               </div>
-              
-//               <div>
-//                 <p className="text-sm text-gray-500">Gender</p>
-//                 <p className="font-medium">{accountData.gender}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Date of Birth</p>
-//                 <p className="font-medium">{accountData.birthDate ? formatDate(accountData.birthDate) : "Not set"}</p>
-//               </div>
-              
-//               {userData && userData.createdAt && (
-//                 <div>
-//                   <p className="text-sm text-gray-500">Member Since</p>
-//                   <p className="font-medium">{new Date(userData.createdAt.seconds * 1000).toLocaleDateString("id-ID")}</p>
-//                 </div>
-//               )}
-  
-//               <div className="pt-4">
-//                 <button
-//                   onClick={() => {
-//                     setEditData({ ...accountData });
-//                     setIsEditing(true);
-//                   }}
-//                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                 >
-//                   Edit Profile
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         ) : (
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <div className="space-y-4">
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Full Name</label>
-//                 <input
-//                   type="text"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.name}
-//                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Email</label>
-//                 <input
-//                   type="email"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.email}
-//                   onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Phone Number</label>
-//                 <input
-//                   type="tel"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.phone}
-//                   onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-//                 />
-//               </div>
-              
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Gender</label>
-//                 <select
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.gender}
-//                   onChange={(e) => setEditData({ ...editData, gender: e.target.value })}
-//                 >
-//                   <option value="">Select gender</option>
-//                   <option value="male">Male</option>
-//                   <option value="female">Female</option>
-//                   <option value="other">Other</option>
-//                 </select>
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Date of Birth</label>
-//                 <input
-//                   type="date"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.birthDate}
-//                   onChange={(e) => setEditData({ ...editData, birthDate: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div className="flex justify-end space-x-3 pt-4">
-//                 <button
-//                   onClick={() => setIsEditing(false)}
-//                   className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-//                 >
-//                   Cancel
-//                 </button>
-//                 <button
-//                   onClick={handleSave}
-//                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                 >
-//                   Save Changes
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-  
-//         <div className="bg-white rounded-xl shadow-sm p-6">
-//           <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium mb-1">Current Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={currentPassword}
-//                 onChange={(e) => setCurrentPassword(e.target.value)}
-//               />
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium mb-1">New Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={newPassword}
-//                 onChange={(e) => setNewPassword(e.target.value)}
-//               />
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium mb-1">Confirm New Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={confirmPassword}
-//                 onChange={(e) => setConfirmPassword(e.target.value)}
-//               />
-//             </div>
-//             <div className="flex justify-end pt-4">
-//               <button
-//                 onClick={handleChangePassword}
-//                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//               >
-//                 Update Password
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   };
-  
-//   // Show loading state while fetching user data
-//   if (loading) {
-//     return (
-//       <div className="w-full min-h-screen bg-blue-50 flex items-center justify-center">
-//         <div className="text-center">
-//           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
-//           <p className="mt-4 text-lg text-gray-700">Loading user data...</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   const renderActiveView = () => {
-//     switch(activeView) {
-//       case "appointments": return <AppointmentManagement />;
-//       case "payments": return <PaymentHistory />;
-//       case "account": return <AccountSettings />;
-//       default: return <AppointmentManagement />;
-//     }
-//   };
-
-//   return (
-//     <div className="w-full min-h-screen bg-blue-50 text-black">
-//       <div className="flex w-full relative">
-//         <div className="bg-white shadow-md p-6 w-[25%] min-h-screen fixed top-0 left-0 z-10">
-//           <div className="flex items-center mb-8 flex-col">
-//             <img src="/assets/patient_1.jpg" className="rounded-full aspect-square w-[35%] mb-3" alt="" />
-//             <div className="w-full text-center">
-//               <h2 className="text-xl font-semibold">{accountData.name}</h2>
-//               <p className="text-gray-600">Patient</p>
-//             </div>
-//           </div>
-//           <div className="nav flex flex-col">
-//             <nav className="space-y-2">
-//                 <button
-//                 onClick={() => setActiveView("appointments")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                     activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//                 >
-//                 <Calendar size={20} className="mr-3" />
-//                 My Appointments
-//                 </button>
-//                 <button
-//                 onClick={() => setActiveView("payments")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                     activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//                 >
-//                 <CurrencyDollar size={20} className="mr-3" />
-//                 Payment History
-//                 </button>
-//                 <button
-//                 onClick={() => setActiveView("account")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                     activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//                 >
-//                 <User size={20} className="mr-3" />
-//                 Account Settings
-//                 </button>
-//             </nav>
-//             <Link href="/" className="w-full mt-16 text-white p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center">
-//                 <House size={20} className="mr-3"/>
-//                 <h1>
-//                     Home
-//                 </h1>
-//             </Link>
-//           </div>
-//         </div>
-
-//         <div className="w-[25%]"></div>
-
-//         <div className="w-[75%] p-8">
-//           {renderActiveView()}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// "use client";
-
-// import { useState } from "react";
-// import { User, Calendar, CurrencyDollar, House} from "@phosphor-icons/react/dist/ssr";
-// import Link from "next/link";
-
-// export default function PatientDashboard() {
-//   const [activeView, setActiveView] = useState("appointments");
-  
-//   const [appointments, setAppointments] = useState([
-//     {
-//       id: 1,
-//       doctor: "Dr. Mulyadi Akbar Denüst",
-//       date: "2025-04-15",
-//       time: "10:00",
-//       status: "confirmed",
-//       complaint: "Regular checkup"
-//     },
-//     {
-//       id: 2,
-//       doctor: "Dr. Hakim Ismail",
-//       date: "2025-04-20",
-//       time: "14:30",
-//       status: "completed",
-//       complaint: "Headache consultation"
-//     },
-//     {
-//       id: 3,
-//       doctor: "Dr. Sarah Wijaya",
-//       date: "2025-05-02",
-//       time: "09:15",
-//       status: "cancelled",
-//       complaint: "Annual physical exam"
-//     }
-//   ]);
-
-//   const [payments, setPayments] = useState([
-//     {
-//       id: "PAY-001",
-//       appointment: "Checkup with Dr. Mulyadi",
-//       amount: 40000,
-//       date: "2025-04-15",
-//       status: "completed",
-//       method: "BCA Virtual Account"
-//     },
-//     {
-//       id: "PAY-002",
-//       appointment: "Consultation with Dr. Hakim",
-//       amount: 45000,
-//       date: "2025-04-20",
-//       status: "completed",
-//       method: "GOPAY"
-//     },
-//     {
-//       id: "PAY-003",
-//       appointment: "Lab Test Package",
-//       amount: 45000,
-//       date: "2025-04-25",
-//       status: "pending",
-//       method: "Credit Card"
-//     }
-//   ]);
-
-//   const [accountData, setAccountData] = useState({
-//     name: "Ahmad Dimas",
-//     email: "ahmaddimas@gmail.com",
-//     phone: "+6281304128523",
-//     birthDate: "1999-07-15"
-//   });
-
-//   const formatDate = (dateStr) => {
-//     const date = new Date(dateStr);
-//     return date.toLocaleDateString("id-ID", {
-//       weekday: 'long',
-//       day: 'numeric',
-//       month: 'long',
-//       year: 'numeric'
-//     });
-//   };
-
-//   const formatRupiah = (value) =>
-//     new Intl.NumberFormat("id-ID", {
-//       style: "currency",
-//       currency: "IDR",
-//       minimumFractionDigits: 0,
-//     }).format(value);
-
-//   const AppointmentManagement = () => {
-//     const [selectedAppointment, setSelectedAppointment] = useState(null);
-
-//     const handleCancel = (appointmentId) => {
-//       if (window.confirm("Are you sure you want to cancel this appointment?")) {
-//         const updated = appointments.map(a => 
-//           a.id === appointmentId ? { ...a, status: "cancelled" } : a
-//         );
-//         setAppointments(updated);
-//       }
-//     };
-
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">My Appointments</h1>
-        
-//         <div className="space-y-4">
-//           {appointments.map((appointment) => (
-//             <div key={appointment.id} className="bg-white p-6 rounded-xl shadow-sm">
-//               <div className="flex justify-between items-start">
-//                 <div>
-//                   <h3 className="font-semibold text-lg">With {appointment.doctor}</h3>
-//                   <p className="text-gray-600">{formatDate(appointment.date)} at {appointment.time}</p>
-//                   <p className="mt-2 text-gray-700">Complaint: {appointment.complaint}</p>
-//                 </div>
-//                 <div className="flex items-center space-x-3">
-//                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-//                     appointment.status === "confirmed" ? "bg-blue-100 text-blue-800" :
-//                     appointment.status === "completed" ? "bg-green-100 text-green-800" :
-//                     "bg-gray-100 text-gray-800"
-//                   }`}>
-//                     {appointment.status}
-//                   </span>
-//                   <button
-//                     onClick={() => setSelectedAppointment(appointment)}
-//                     className="text-blue-600 hover:text-blue-800"
-//                   >
-//                     Details
-//                   </button>
-//                 </div>
-//               </div>
-              
-//               {appointment.status === "confirmed" && (
-//                 <div className="mt-4">
-//                   <button
-//                     onClick={() => handleCancel(appointment.id)}
-//                     className="px-3 py-1 text-sm rounded bg-red-100 text-red-800 hover:bg-red-200"
-//                   >
-//                     Cancel Appointment
-//                   </button>
-//                 </div>
-//               )}
-//             </div>
-//           ))}
-//         </div>
-        
-//         {selectedAppointment && (
-//           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//             <div className="bg-white rounded-xl p-6 w-full max-w-md">
-//               <div className="flex justify-between items-center mb-4">
-//                 <h2 className="text-xl font-bold">Appointment Details</h2>
-//                 <button
-//                   onClick={() => setSelectedAppointment(null)}
-//                   className="text-gray-500 hover:text-gray-700"
-//                 >
-//                   ✕
-//                 </button>
-//               </div>
-              
-//               <div className="space-y-3">
-//                 <div>
-//                   <p className="text-sm text-gray-500">Doctor</p>
-//                   <p className="font-medium">{selectedAppointment.doctor}</p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Date & Time</p>
-//                   <p className="font-medium">
-//                     {formatDate(selectedAppointment.date)} at {selectedAppointment.time}
-//                   </p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Complaint</p>
-//                   <p className="font-medium">{selectedAppointment.complaint}</p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Status</p>
-//                   <p className={`font-medium px-2 py-1 inline-block rounded ${
-//                     selectedAppointment.status === "confirmed" ? "bg-blue-100 text-blue-800" :
-//                     selectedAppointment.status === "completed" ? "bg-green-100 text-green-800" :
-//                     "bg-gray-100 text-gray-800"
-//                   }`}>
-//                     {selectedAppointment.status}
-//                   </p>
-//                 </div>
-                
-//                 <div className="pt-4">
-//                   <button
-//                     onClick={() => setSelectedAppointment(null)}
-//                     className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                   >
-//                     Close
-//                   </button>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//     );
-//   };
-
-//   const PaymentHistory = () => {
-//     const totalSpent = payments.reduce((sum, payment) => sum + payment.amount, 0);
-
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">Payment History</h1>
-        
-//         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Total Spent</p>
-//             <p className="text-2xl font-bold">{formatRupiah(totalSpent)}</p>
-//           </div>
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Completed Payments</p>
-//             <p className="text-2xl font-bold">
-//               {payments.filter(p => p.status === "completed").length}
-//             </p>
-//           </div>
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Pending Payments</p>
-//             <p className="text-2xl font-bold">
-//               {payments.filter(p => p.status === "pending").length}
-//             </p>
-//           </div>
-//         </div>
-        
-//         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-//           <table className="min-w-full divide-y divide-gray-200">
-//             <thead className="bg-gray-50">
-//               <tr>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment ID</th>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-//                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-//               </tr>
-//             </thead>
-//             <tbody className="bg-white divide-y divide-gray-200">
-//               {payments.map((payment) => (
-//                 <tr key={payment.id} className="hover:bg-gray-50">
-//                   <td className="px-6 py-4 whitespace-nowrap">
-//                     <div className="font-medium">{payment.id}</div>
-//                   </td>
-//                   <td className="px-6 py-4 whitespace-nowrap">{payment.appointment}</td>
-//                   <td className="px-6 py-4 whitespace-nowrap">{formatRupiah(payment.amount)}</td>
-//                   <td className="px-6 py-4 whitespace-nowrap">{formatDate(payment.date)}</td>
-//                   <td className="px-6 py-4 whitespace-nowrap">
-//                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-//                       payment.status === "completed" ? "bg-green-100 text-green-800" :
-//                       "bg-yellow-100 text-yellow-800"
-//                     }`}>
-//                       {payment.status}
-//                     </span>
-//                   </td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//         </div>
-//       </div>
-//     );
-//   };
-
-//   const AccountSettings = () => {
-//     const [isEditing, setIsEditing] = useState(false);
-//     const [editData, setEditData] = useState({ ...accountData });
-  
-//     const [currentPassword, setCurrentPassword] = useState("");
-//     const [newPassword, setNewPassword] = useState("");
-//     const [confirmPassword, setConfirmPassword] = useState("");
-  
-//     const handleSave = () => {
-//       setAccountData(editData);
-//       setIsEditing(false);
-//     };
-  
-//     const handleChangePassword = () => {
-//       if (!currentPassword || !newPassword || !confirmPassword) {
-//         alert("Please fill in all password fields.");
-//         return;
-//       }
-  
-//       if (newPassword !== confirmPassword) {
-//         alert("New passwords do not match.");
-//         return;
-//       }
-  
-//       alert("Password changed successfully!");
-//       setCurrentPassword("");
-//       setNewPassword("");
-//       setConfirmPassword("");
-//     };
-  
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">Account Settings</h1>
-  
-//         {!isEditing ? (
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <div className="space-y-4">
-//               <div>
-//                 <p className="text-sm text-gray-500">Full Name</p>
-//                 <p className="font-medium">{accountData.name}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Email</p>
-//                 <p className="font-medium">{accountData.email}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Phone Number</p>
-//                 <p className="font-medium">{accountData.phone}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Date of Birth</p>
-//                 <p className="font-medium">{formatDate(accountData.birthDate)}</p>
-//               </div>
-  
-//               <div className="pt-4">
-//                 <button
-//                   onClick={() => {
-//                     setEditData({ ...accountData });
-//                     setIsEditing(true);
-//                   }}
-//                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                 >
-//                   Edit Profile
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         ) : (
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <div className="space-y-4">
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Full Name</label>
-//                 <input
-//                   type="text"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.name}
-//                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Email</label>
-//                 <input
-//                   type="email"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.email}
-//                   onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Phone Number</label>
-//                 <input
-//                   type="tel"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.phone}
-//                   onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Date of Birth</label>
-//                 <input
-//                   type="date"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.birthDate}
-//                   onChange={(e) => setEditData({ ...editData, birthDate: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div className="flex justify-end space-x-3 pt-4">
-//                 <button
-//                   onClick={() => setIsEditing(false)}
-//                   className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-//                 >
-//                   Cancel
-//                 </button>
-//                 <button
-//                   onClick={handleSave}
-//                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                 >
-//                   Save Changes
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-  
-//         <div className="bg-white rounded-xl shadow-sm p-6">
-//           <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium mb-1">Current Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={currentPassword}
-//                 onChange={(e) => setCurrentPassword(e.target.value)}
-//               />
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium mb-1">New Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={newPassword}
-//                 onChange={(e) => setNewPassword(e.target.value)}
-//               />
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium mb-1">Confirm New Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={confirmPassword}
-//                 onChange={(e) => setConfirmPassword(e.target.value)}
-//               />
-//             </div>
-//             <div className="flex justify-end pt-4">
-//               <button
-//                 onClick={handleChangePassword}
-//                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//               >
-//                 Update Password
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   };
-  
-
-//   const renderActiveView = () => {
-//     switch(activeView) {
-//       case "appointments": return <AppointmentManagement />;
-//       case "payments": return <PaymentHistory />;
-//       case "account": return <AccountSettings />;
-//       default: return <AppointmentManagement />;
-//     }
-//   };
-
-//   return (
-//     <div className="w-full min-h-screen bg-blue-50 text-black">
-//       <div className="flex w-full relative">
-//         <div className="bg-white shadow-md p-6 w-[25%] min-h-screen fixed top-0 left-0 z-10">
-//           <div className="flex items-center mb-8 flex-col">
-//             <img src="/assets/patient_1.jpg" className="rounded-full aspect-square w-[35%] mb-3" alt="" />
-//             <div className="w-full text-center">
-//               <h2 className="text-xl font-semibold">{accountData.name}</h2>
-//               <p className="text-gray-600">Patient</p>
-//             </div>
-//           </div>
-//           <div className="nav flex flex-col">
-//             <nav className="space-y-2">
-//                 <button
-//                 onClick={() => setActiveView("appointments")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                     activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//                 >
-//                 <Calendar size={20} className="mr-3" />
-//                 My Appointments
-//                 </button>
-//                 <button
-//                 onClick={() => setActiveView("payments")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                     activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//                 >
-//                 <CurrencyDollar size={20} className="mr-3" />
-//                 Payment History
-//                 </button>
-//                 <button
-//                 onClick={() => setActiveView("account")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                     activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//                 >
-//                 <User size={20} className="mr-3" />
-//                 Account Settings
-//                 </button>
-//             </nav>
-//             <Link href="/" className="w-full mt-16 text-white p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center">
-//                 <House size={20} className="mr-3"/>
-//                 <h1>
-//                     Home
-//                 </h1>
-//             </Link>
-//           </div>
-//         </div>
-
-//         <div className="w-[25%]"></div>
-
-//         <div className="w-[75%] p-8">
-//           {renderActiveView()}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-// "use client";
-
-// import { useState, useEffect } from "react";
-// import { User, Calendar, CurrencyDollar, House} from "@phosphor-icons/react/dist/ssr";
-// import Link from "next/link";
-// import { auth, db } from "../../../lib/firebase";
-// import { onAuthStateChanged, signOut } from "firebase/auth";
-// import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
-// import { useRouter } from "next/navigation";
-
-// export default function PatientDashboard() {
-//   const [activeView, setActiveView] = useState("appointments");
-//   const [user, setUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const [appointments, setAppointments] = useState([]);
-//   const [payments, setPayments] = useState([]);
-//   const [accountData, setAccountData] = useState({
-//     name: "",
-//     email: "",
-//     phone: "",
-//     birthDate: "",
-//     gender: ""
-//   });
-  
-//   const router = useRouter();
-
-//   // Check authentication status and fetch user data
-//   useEffect(() => {
-//     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-//       if (currentUser) {
-//         setUser(currentUser);
-//         await fetchUserData(currentUser.uid);
-//         await fetchAppointments(currentUser.uid);
-//         await fetchPayments(currentUser.uid);
-//       } else {
-//         // Redirect to sign-in if not authenticated
-//         router.push("/sign-in");
-//       }
-//       setLoading(false);
-//     });
-
-//     return () => unsubscribe();
-//   }, [router]);
-
-//   // Fetch user data from Firestore
-//   const fetchUserData = async (uid) => {
-//     try {
-//       const userDocRef = doc(db, "users", uid);
-//       const userDoc = await getDoc(userDocRef);
-      
-//       if (userDoc.exists()) {
-//         const userData = userDoc.data();
-//         setAccountData({
-//           name: userData.name || userData.email.split("@")[0], // Use email as fallback if name is not set
-//           email: userData.email,
-//           phone: userData.phone || "",
-//           birthDate: userData.birthDate || new Date().toISOString().split("T")[0],
-//           gender: userData.gender || ""
-//         });
-//       }
-//     } catch (error) {
-//       console.error("Error fetching user data:", error);
-//     }
-//   };
-
-//   // Fetch appointments from Firestore
-//   const fetchAppointments = async (uid) => {
-//     try {
-//       const appointmentsRef = collection(db, "appointments");
-//       const q = query(
-//         appointmentsRef,
-//         where("patientId", "==", uid),
-//         orderBy("date", "desc")
-//       );
-      
-//       const querySnapshot = await getDocs(q);
-//       const appointmentsData = [];
-      
-//       querySnapshot.forEach((doc) => {
-//         appointmentsData.push({
-//           id: doc.id,
-//           ...doc.data()
-//         });
-//       });
-      
-//       setAppointments(appointmentsData);
-//     } catch (error) {
-//       console.error("Error fetching appointments:", error);
-//     }
-//   };
-
-//   // Fetch payment history from Firestore
-//   const fetchPayments = async (uid) => {
-//     try {
-//       const paymentsRef = collection(db, "payments");
-//       const q = query(
-//         paymentsRef,
-//         where("patientId", "==", uid),
-//         orderBy("date", "desc")
-//       );
-      
-//       const querySnapshot = await getDocs(q);
-//       const paymentsData = [];
-      
-//       querySnapshot.forEach((doc) => {
-//         paymentsData.push({
-//           id: doc.id,
-//           ...doc.data()
-//         });
-//       });
-      
-//       setPayments(paymentsData);
-//     } catch (error) {
-//       console.error("Error fetching payments:", error);
-//     }
-//   };
-
-//   const handleSignOut = async () => {
-//     try {
-//       await signOut(auth);
-//       router.push("/sign-in");
-//     } catch (error) {
-//       console.error("Error signing out:", error);
-//     }
-//   };
-
-//   const formatDate = (dateStr) => {
-//     if (!dateStr) return "Not specified";
-//     const date = new Date(dateStr);
-//     return date.toLocaleDateString("id-ID", {
-//       weekday: 'long',
-//       day: 'numeric',
-//       month: 'long',
-//       year: 'numeric'
-//     });
-//   };
-
-//   const formatRupiah = (value) =>
-//     new Intl.NumberFormat("id-ID", {
-//       style: "currency",
-//       currency: "IDR",
-//       minimumFractionDigits: 0,
-//     }).format(value);
-
-//   const AppointmentManagement = () => {
-//     const [selectedAppointment, setSelectedAppointment] = useState(null);
-
-//     const handleCancel = async (appointmentId) => {
-//       if (window.confirm("Are you sure you want to cancel this appointment?")) {
-//         try {
-//           // Update the appointment status in Firestore
-//           const appointmentRef = doc(db, "appointments", appointmentId);
-//           await updateDoc(appointmentRef, {
-//             status: "cancelled"
-//           });
-          
-//           // Update local state
-//           const updated = appointments.map(a => 
-//             a.id === appointmentId ? { ...a, status: "cancelled" } : a
-//           );
-//           setAppointments(updated);
-//         } catch (error) {
-//           console.error("Error cancelling appointment:", error);
-//           alert("Failed to cancel appointment. Please try again.");
-//         }
-//       }
-//     };
-
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">My Appointments</h1>
-        
-//         {appointments.length === 0 ? (
-//           <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-//             <p>You don't have any appointments yet.</p>
-//           </div>
-//         ) : (
-//           <div className="space-y-4">
-//             {appointments.map((appointment) => (
-//               <div key={appointment.id} className="bg-white p-6 rounded-xl shadow-sm">
-//                 <div className="flex justify-between items-start">
-//                   <div>
-//                     <h3 className="font-semibold text-lg">With {appointment.doctorName}</h3>
-//                     <p className="text-gray-600">{formatDate(appointment.date)} at {appointment.time}</p>
-//                     <p className="mt-2 text-gray-700">Complaint: {appointment.complaint}</p>
-//                   </div>
-//                   <div className="flex items-center space-x-3">
-//                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-//                       appointment.status === "confirmed" ? "bg-blue-100 text-blue-800" :
-//                       appointment.status === "completed" ? "bg-green-100 text-green-800" :
-//                       "bg-gray-100 text-gray-800"
-//                     }`}>
-//                       {appointment.status}
-//                     </span>
-//                     <button
-//                       onClick={() => setSelectedAppointment(appointment)}
-//                       className="text-blue-600 hover:text-blue-800"
-//                     >
-//                       Details
-//                     </button>
-//                   </div>
-//                 </div>
-                
-//                 {appointment.status === "confirmed" && (
-//                   <div className="mt-4">
-//                     <button
-//                       onClick={() => handleCancel(appointment.id)}
-//                       className="px-3 py-1 text-sm rounded bg-red-100 text-red-800 hover:bg-red-200"
-//                     >
-//                       Cancel Appointment
-//                     </button>
-//                   </div>
-//                 )}
-//               </div>
-//             ))}
-//           </div>
-//         )}
-        
-//         {selectedAppointment && (
-//           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//             <div className="bg-white rounded-xl p-6 w-full max-w-md">
-//               <div className="flex justify-between items-center mb-4">
-//                 <h2 className="text-xl font-bold">Appointment Details</h2>
-//                 <button
-//                   onClick={() => setSelectedAppointment(null)}
-//                   className="text-gray-500 hover:text-gray-700"
-//                 >
-//                   ✕
-//                 </button>
-//               </div>
-              
-//               <div className="space-y-3">
-//                 <div>
-//                   <p className="text-sm text-gray-500">Doctor</p>
-//                   <p className="font-medium">{selectedAppointment.doctorName}</p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Date & Time</p>
-//                   <p className="font-medium">
-//                     {formatDate(selectedAppointment.date)} at {selectedAppointment.time}
-//                   </p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Complaint</p>
-//                   <p className="font-medium">{selectedAppointment.complaint}</p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Status</p>
-//                   <p className={`font-medium px-2 py-1 inline-block rounded ${
-//                     selectedAppointment.status === "confirmed" ? "bg-blue-100 text-blue-800" :
-//                     selectedAppointment.status === "completed" ? "bg-green-100 text-green-800" :
-//                     "bg-gray-100 text-gray-800"
-//                   }`}>
-//                     {selectedAppointment.status}
-//                   </p>
-//                 </div>
-                
-//                 <div className="pt-4">
-//                   <button
-//                     onClick={() => setSelectedAppointment(null)}
-//                     className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                   >
-//                     Close
-//                   </button>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//     );
-//   };
-
-//   const PaymentHistory = () => {
-//     const totalSpent = payments.reduce((sum, payment) => sum + payment.amount, 0);
-
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">Payment History</h1>
-        
-//         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Total Spent</p>
-//             <p className="text-2xl font-bold">{formatRupiah(totalSpent)}</p>
-//           </div>
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Completed Payments</p>
-//             <p className="text-2xl font-bold">
-//               {payments.filter(p => p.status === "completed").length}
-//             </p>
-//           </div>
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Pending Payments</p>
-//             <p className="text-2xl font-bold">
-//               {payments.filter(p => p.status === "pending").length}
-//             </p>
-//           </div>
-//         </div>
-        
-//         {payments.length === 0 ? (
-//           <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-//             <p>You don't have any payment records yet.</p>
-//           </div>
-//         ) : (
-//           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-//             <table className="min-w-full divide-y divide-gray-200">
-//               <thead className="bg-gray-50">
-//                 <tr>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment ID</th>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-//                 </tr>
-//               </thead>
-//               <tbody className="bg-white divide-y divide-gray-200">
-//                 {payments.map((payment) => (
-//                   <tr key={payment.id} className="hover:bg-gray-50">
-//                     <td className="px-6 py-4 whitespace-nowrap">
-//                       <div className="font-medium">{payment.id.substring(0, 8).toUpperCase()}</div>
-//                     </td>
-//                     <td className="px-6 py-4 whitespace-nowrap">{payment.description}</td>
-//                     <td className="px-6 py-4 whitespace-nowrap">{formatRupiah(payment.amount)}</td>
-//                     <td className="px-6 py-4 whitespace-nowrap">{formatDate(payment.date)}</td>
-//                     <td className="px-6 py-4 whitespace-nowrap">
-//                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-//                         payment.status === "completed" ? "bg-green-100 text-green-800" :
-//                         "bg-yellow-100 text-yellow-800"
-//                       }`}>
-//                         {payment.status}
-//                       </span>
-//                     </td>
-//                   </tr>
-//                 ))}
-//               </tbody>
-//             </table>
-//           </div>
-//         )}
-//       </div>
-//     );
-//   };
-
-//   const AccountSettings = () => {
-//     const [isEditing, setIsEditing] = useState(false);
-//     const [editData, setEditData] = useState({ ...accountData });
-  
-//     const [currentPassword, setCurrentPassword] = useState("");
-//     const [newPassword, setNewPassword] = useState("");
-//     const [confirmPassword, setConfirmPassword] = useState("");
-//     const [passwordError, setPasswordError] = useState("");
-  
-//     const handleSave = async () => {
-//       try {
-//         if (!user) return;
-        
-//         // Update the user document in Firestore
-//         const userDocRef = doc(db, "users", user.uid);
-//         await updateDoc(userDocRef, {
-//           name: editData.name,
-//           email: editData.email,
-//           phone: editData.phone,
-//           birthDate: editData.birthDate
-//         });
-        
-//         // Update local state
-//         setAccountData(editData);
-//         setIsEditing(false);
-//         alert("Profile updated successfully!");
-//       } catch (error) {
-//         console.error("Error updating profile:", error);
-//         alert("Failed to update profile. Please try again.");
-//       }
-//     };
-  
-//     const handleChangePassword = async () => {
-//       setPasswordError("");
-      
-//       if (!currentPassword || !newPassword || !confirmPassword) {
-//         setPasswordError("Please fill in all password fields.");
-//         return;
-//       }
-  
-//       if (newPassword !== confirmPassword) {
-//         setPasswordError("New passwords do not match.");
-//         return;
-//       }
-      
-//       if (newPassword.length < 6) {
-//         setPasswordError("Password must be at least 6 characters long.");
-//         return;
-//       }
-      
-//       // Note: In a real app, you would use Firebase's updatePassword method
-//       // However, this requires recent authentication
-//       alert("Password changed successfully!");
-//       setCurrentPassword("");
-//       setNewPassword("");
-//       setConfirmPassword("");
-//     };
-  
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">Account Settings</h1>
-  
-//         {!isEditing ? (
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <div className="space-y-4">
-//               <div>
-//                 <p className="text-sm text-gray-500">Full Name</p>
-//                 <p className="font-medium">{accountData.name}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Email</p>
-//                 <p className="font-medium">{accountData.email}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Phone Number</p>
-//                 <p className="font-medium">{accountData.phone}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Date of Birth</p>
-//                 <p className="font-medium">{formatDate(accountData.birthDate)}</p>
-//               </div>
-              
-//               <div>
-//                 <p className="text-sm text-gray-500">Gender</p>
-//                 <p className="font-medium capitalize">{accountData.gender || "Not specified"}</p>
-//               </div>
-  
-//               <div className="pt-4">
-//                 <button
-//                   onClick={() => {
-//                     setEditData({ ...accountData });
-//                     setIsEditing(true);
-//                   }}
-//                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                 >
-//                   Edit Profile
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         ) : (
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <div className="space-y-4">
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Full Name</label>
-//                 <input
-//                   type="text"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.name}
-//                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Email</label>
-//                 <input
-//                   type="email"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.email}
-//                   onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-//                   disabled // Email should not be editable as it's the auth identifier
-//                 />
-//                 <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Phone Number</label>
-//                 <input
-//                   type="tel"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.phone}
-//                   onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Date of Birth</label>
-//                 <input
-//                   type="date"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.birthDate}
-//                   onChange={(e) => setEditData({ ...editData, birthDate: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div className="flex justify-end space-x-3 pt-4">
-//                 <button
-//                   onClick={() => setIsEditing(false)}
-//                   className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-//                 >
-//                   Cancel
-//                 </button>
-//                 <button
-//                   onClick={handleSave}
-//                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                 >
-//                   Save Changes
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-  
-//         <div className="bg-white rounded-xl shadow-sm p-6">
-//           <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium mb-1">Current Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={currentPassword}
-//                 onChange={(e) => setCurrentPassword(e.target.value)}
-//               />
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium mb-1">New Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={newPassword}
-//                 onChange={(e) => setNewPassword(e.target.value)}
-//               />
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium mb-1">Confirm New Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={confirmPassword}
-//                 onChange={(e) => setConfirmPassword(e.target.value)}
-//               />
-//             </div>
-//             {passwordError && (
-//               <div className="text-red-500 text-sm">{passwordError}</div>
-//             )}
-//             <div className="flex justify-end pt-4">
-//               <button
-//                 onClick={handleChangePassword}
-//                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//               >
-//                 Update Password
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   };
-  
-//   const renderActiveView = () => {
-//     switch(activeView) {
-//       case "appointments": return <AppointmentManagement />;
-//       case "payments": return <PaymentHistory />;
-//       case "account": return <AccountSettings />;
-//       default: return <AppointmentManagement />;
-//     }
-//   };
-
-//   if (loading) {
-//     return (
-//       <div className="w-full min-h-screen bg-blue-50 flex items-center justify-center">
-//         <div className="text-center">
-//           <p className="text-xl">Loading...</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div className="w-full min-h-screen bg-blue-50 text-black">
-//       <div className="flex w-full relative">
-//         <div className="bg-white shadow-md p-6 w-[25%] min-h-screen fixed top-0 left-0 z-10">
-//           <div className="flex items-center mb-8 flex-col">
-//             <img 
-//               src={`/assets/${accountData.gender === 'female' ? 'patient_female.jpg' : 'patient_1.jpg'}`} 
-//               className="rounded-full aspect-square w-[35%] mb-3" 
-//               alt="Patient profile" 
-//             />
-//             <div className="w-full text-center">
-//               <h2 className="text-xl font-semibold">{accountData.name}</h2>
-//               <p className="text-gray-600">Patient</p>
-//             </div>
-//           </div>
-//           <div className="nav flex flex-col h-full">
-//             <nav className="space-y-2">
-//               <button
-//                 onClick={() => setActiveView("appointments")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                   activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//               >
-//                 <Calendar size={20} className="mr-3" />
-//                 My Appointments
-//               </button>
-//               <button
-//                 onClick={() => setActiveView("payments")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                   activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//               >
-//                 <CurrencyDollar size={20} className="mr-3" />
-//                 Payment History
-//               </button>
-//               <button
-//                 onClick={() => setActiveView("account")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                   activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//               >
-//                 <User size={20} className="mr-3" />
-//                 Account Settings
-//               </button>
-//             </nav>
-//             <div className="mt-auto space-y-2">
-//               <Link href="/" className="w-full p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center text-white">
-//                 <House size={20} className="mr-3"/>
-//                 <h1>Home</h1>
-//               </Link>
-//               <button 
-//                 onClick={handleSignOut}
-//                 className="w-full p-3 font-medium rounded-lg bg-red-100 text-red-800 hover:bg-red-200 transition-all duration-100 flex items-center"
-//               >
-//                 Sign Out
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-
-//         <div className="w-[25%]"></div>
-
-//         <div className="w-[75%] p-8">
-//           {renderActiveView()}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// "use client";
-
-// import { useState, useEffect } from "react";
-// import { User, Calendar, CurrencyDollar, House} from "@phosphor-icons/react/dist/ssr";
-// import Link from "next/link";
-// import { auth, db } from "../../../lib/firebase";
-// import { onAuthStateChanged, signOut } from "firebase/auth";
-// import { doc, getDoc, updateDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
-// import { useRouter } from "next/navigation";
-
-// export default function PatientDashboard() {
-//   const [activeView, setActiveView] = useState("appointments");
-//   const [user, setUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const [appointments, setAppointments] = useState([]);
-//   const [payments, setPayments] = useState([]);
-//   const [accountData, setAccountData] = useState({
-//     name: "",
-//     email: "",
-//     phone: "",
-//     birthDate: "",
-//     gender: ""
-//   });
-  
-//   const router = useRouter();
-
-//   // Check authentication status and fetch user data
-//   useEffect(() => {
-//     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-//       if (currentUser) {
-//         setUser(currentUser);
-        
-//         try {
-//           await fetchUserData(currentUser.uid);
-//           await fetchAppointments(currentUser.uid);
-//           await fetchPayments(currentUser.uid);
-//         } catch (error) {
-//           console.error("Error fetching data:", error);
-//         }
-//       } else {
-//         // Redirect to sign-in if not authenticated
-//         router.push("/sign-in");
-//       }
-//       setLoading(false);
-//     });
-
-//     return () => unsubscribe();
-//   }, [router]);
-
-//   // Fetch user data from Firestore
-//   const fetchUserData = async (uid) => {
-//     try {
-//       const userDocRef = doc(db, "users", uid);
-//       const userDoc = await getDoc(userDocRef);
-      
-//       if (userDoc.exists()) {
-//         const userData = userDoc.data();
-//         setAccountData({
-//           name: userData.name || userData.email.split("@")[0], // Use email as fallback if name is not set
-//           email: userData.email,
-//           phone: userData.phone || "",
-//           birthDate: userData.birthDate || new Date().toISOString().split("T")[0],
-//           gender: userData.gender || ""
-//         });
-//       }
-//     } catch (error) {
-//       console.error("Error fetching user data:", error);
-//     }
-//   };
-
-//   // Fetch appointments from Firestore
-//   const fetchAppointments = async (uid) => {
-//     try {
-//       const appointmentsRef = collection(db, "appointments");
-      
-//       // First fetch by patient ID without ordering to avoid index errors
-//       const q = query(
-//         appointmentsRef,
-//         where("patientId", "==", uid)
-//       );
-      
-//       const querySnapshot = await getDocs(q);
-//       const appointmentsData = [];
-      
-//       querySnapshot.forEach((doc) => {
-//         appointmentsData.push({
-//           id: doc.id,
-//           ...doc.data()
-//         });
-//       });
-      
-//       // Sort the results client-side to avoid Firestore index requirements
-//       appointmentsData.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-//       setAppointments(appointmentsData);
-//     } catch (error) {
-//       console.error("Error fetching appointments:", error);
-//     }
-//   };
-
-//   // Fetch payment history from Firestore
-//   const fetchPayments = async (uid) => {
-//     try {
-//       const paymentsRef = collection(db, "payments");
-      
-//       // Query only by patientId without ordering to avoid index requirements
-//       const q = query(
-//         paymentsRef,
-//         where("patientId", "==", uid)
-//       );
-      
-//       const querySnapshot = await getDocs(q);
-//       const paymentsData = [];
-      
-//       querySnapshot.forEach((doc) => {
-//         paymentsData.push({
-//           id: doc.id,
-//           ...doc.data()
-//         });
-//       });
-      
-//       // Sort client-side instead of using Firestore's orderBy
-//       paymentsData.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-//       setPayments(paymentsData);
-//     } catch (error) {
-//       console.error("Error fetching payments:", error);
-//     }
-//   };
-
-//   const handleSignOut = async () => {
-//     try {
-//       await signOut(auth);
-//       router.push("/sign-in");
-//     } catch (error) {
-//       console.error("Error signing out:", error);
-//     }
-//   };
-
-//   const formatDate = (dateStr) => {
-//     if (!dateStr) return "Not specified";
-//     const date = new Date(dateStr);
-//     return date.toLocaleDateString("id-ID", {
-//       weekday: 'long',
-//       day: 'numeric',
-//       month: 'long',
-//       year: 'numeric'
-//     });
-//   };
-
-//   const formatRupiah = (value) =>
-//     new Intl.NumberFormat("id-ID", {
-//       style: "currency",
-//       currency: "IDR",
-//       minimumFractionDigits: 0,
-//     }).format(value);
-
-//   const AppointmentManagement = () => {
-//     const [selectedAppointment, setSelectedAppointment] = useState(null);
-
-//     const handleCancel = async (appointmentId) => {
-//       if (window.confirm("Are you sure you want to cancel this appointment?")) {
-//         try {
-//           // Update the appointment status in Firestore
-//           const appointmentRef = doc(db, "appointments", appointmentId);
-//           await updateDoc(appointmentRef, {
-//             status: "cancelled"
-//           });
-          
-//           // Update local state
-//           const updated = appointments.map(a => 
-//             a.id === appointmentId ? { ...a, status: "cancelled" } : a
-//           );
-//           setAppointments(updated);
-//         } catch (error) {
-//           console.error("Error cancelling appointment:", error);
-//           alert("Failed to cancel appointment. Please try again.");
-//         }
-//       }
-//     };
-
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">My Appointments</h1>
-        
-//         {appointments.length === 0 ? (
-//           <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-//             <p>You don't have any appointments yet.</p>
-//           </div>
-//         ) : (
-//           <div className="space-y-4">
-//             {appointments.map((appointment) => (
-//               <div key={appointment.id} className="bg-white p-6 rounded-xl shadow-sm">
-//                 <div className="flex justify-between items-start">
-//                   <div>
-//                     <h3 className="font-semibold text-lg">With {appointment.doctorName}</h3>
-//                     <p className="text-gray-600">{formatDate(appointment.date)} at {appointment.time}</p>
-//                     <p className="mt-2 text-gray-700">Complaint: {appointment.complaint}</p>
-//                   </div>
-//                   <div className="flex items-center space-x-3">
-//                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-//                       appointment.status === "confirmed" ? "bg-blue-100 text-blue-800" :
-//                       appointment.status === "completed" ? "bg-green-100 text-green-800" :
-//                       "bg-gray-100 text-gray-800"
-//                     }`}>
-//                       {appointment.status}
-//                     </span>
-//                     <button
-//                       onClick={() => setSelectedAppointment(appointment)}
-//                       className="text-blue-600 hover:text-blue-800"
-//                     >
-//                       Details
-//                     </button>
-//                   </div>
-//                 </div>
-                
-//                 {appointment.status === "confirmed" && (
-//                   <div className="mt-4">
-//                     <button
-//                       onClick={() => handleCancel(appointment.id)}
-//                       className="px-3 py-1 text-sm rounded bg-red-100 text-red-800 hover:bg-red-200"
-//                     >
-//                       Cancel Appointment
-//                     </button>
-//                   </div>
-//                 )}
-//               </div>
-//             ))}
-//           </div>
-//         )}
-        
-//         {selectedAppointment && (
-//           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//             <div className="bg-white rounded-xl p-6 w-full max-w-md">
-//               <div className="flex justify-between items-center mb-4">
-//                 <h2 className="text-xl font-bold">Appointment Details</h2>
-//                 <button
-//                   onClick={() => setSelectedAppointment(null)}
-//                   className="text-gray-500 hover:text-gray-700"
-//                 >
-//                   ✕
-//                 </button>
-//               </div>
-              
-//               <div className="space-y-3">
-//                 <div>
-//                   <p className="text-sm text-gray-500">Doctor</p>
-//                   <p className="font-medium">{selectedAppointment.doctorName}</p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Date & Time</p>
-//                   <p className="font-medium">
-//                     {formatDate(selectedAppointment.date)} at {selectedAppointment.time}
-//                   </p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Complaint</p>
-//                   <p className="font-medium">{selectedAppointment.complaint}</p>
-//                 </div>
-                
-//                 <div>
-//                   <p className="text-sm text-gray-500">Status</p>
-//                   <p className={`font-medium px-2 py-1 inline-block rounded ${
-//                     selectedAppointment.status === "confirmed" ? "bg-blue-100 text-blue-800" :
-//                     selectedAppointment.status === "completed" ? "bg-green-100 text-green-800" :
-//                     "bg-gray-100 text-gray-800"
-//                   }`}>
-//                     {selectedAppointment.status}
-//                   </p>
-//                 </div>
-                
-//                 <div className="pt-4">
-//                   <button
-//                     onClick={() => setSelectedAppointment(null)}
-//                     className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                   >
-//                     Close
-//                   </button>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-//       </div>
-//     );
-//   };
-
-//   const PaymentHistory = () => {
-//     const totalSpent = payments.reduce((sum, payment) => sum + payment.amount, 0);
-
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">Payment History</h1>
-        
-//         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Total Spent</p>
-//             <p className="text-2xl font-bold">{formatRupiah(totalSpent)}</p>
-//           </div>
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Completed Payments</p>
-//             <p className="text-2xl font-bold">
-//               {payments.filter(p => p.status === "completed").length}
-//             </p>
-//           </div>
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <p className="text-gray-500">Pending Payments</p>
-//             <p className="text-2xl font-bold">
-//               {payments.filter(p => p.status === "pending").length}
-//             </p>
-//           </div>
-//         </div>
-        
-//         {payments.length === 0 ? (
-//           <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-//             <p>You don't have any payment records yet.</p>
-//           </div>
-//         ) : (
-//           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-//             <table className="min-w-full divide-y divide-gray-200">
-//               <thead className="bg-gray-50">
-//                 <tr>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment ID</th>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment</th>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-//                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-//                 </tr>
-//               </thead>
-//               <tbody className="bg-white divide-y divide-gray-200">
-//                 {payments.map((payment) => (
-//                   <tr key={payment.id} className="hover:bg-gray-50">
-//                     <td className="px-6 py-4 whitespace-nowrap">
-//                       <div className="font-medium">{payment.id.substring(0, 8).toUpperCase()}</div>
-//                     </td>
-//                     <td className="px-6 py-4 whitespace-nowrap">{payment.description}</td>
-//                     <td className="px-6 py-4 whitespace-nowrap">{formatRupiah(payment.amount)}</td>
-//                     <td className="px-6 py-4 whitespace-nowrap">{formatDate(payment.date)}</td>
-//                     <td className="px-6 py-4 whitespace-nowrap">
-//                       <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-//                         payment.status === "completed" ? "bg-green-100 text-green-800" :
-//                         "bg-yellow-100 text-yellow-800"
-//                       }`}>
-//                         {payment.status}
-//                       </span>
-//                     </td>
-//                   </tr>
-//                 ))}
-//               </tbody>
-//             </table>
-//           </div>
-//         )}
-//       </div>
-//     );
-//   };
-
-//   const AccountSettings = () => {
-//     const [isEditing, setIsEditing] = useState(false);
-//     const [editData, setEditData] = useState({ ...accountData });
-  
-//     const [currentPassword, setCurrentPassword] = useState("");
-//     const [newPassword, setNewPassword] = useState("");
-//     const [confirmPassword, setConfirmPassword] = useState("");
-//     const [passwordError, setPasswordError] = useState("");
-  
-//     const handleSave = async () => {
-//       try {
-//         if (!user) return;
-        
-//         // Update the user document in Firestore
-//         const userDocRef = doc(db, "users", user.uid);
-//         await updateDoc(userDocRef, {
-//           name: editData.name,
-//           email: editData.email,
-//           phone: editData.phone,
-//           birthDate: editData.birthDate
-//         });
-        
-//         // Update local state
-//         setAccountData(editData);
-//         setIsEditing(false);
-//         alert("Profile updated successfully!");
-//       } catch (error) {
-//         console.error("Error updating profile:", error);
-//         alert("Failed to update profile. Please try again.");
-//       }
-//     };
-  
-//     const handleChangePassword = async () => {
-//       setPasswordError("");
-      
-//       if (!currentPassword || !newPassword || !confirmPassword) {
-//         setPasswordError("Please fill in all password fields.");
-//         return;
-//       }
-  
-//       if (newPassword !== confirmPassword) {
-//         setPasswordError("New passwords do not match.");
-//         return;
-//       }
-      
-//       if (newPassword.length < 6) {
-//         setPasswordError("Password must be at least 6 characters long.");
-//         return;
-//       }
-      
-//       // Note: In a real app, you would use Firebase's updatePassword method
-//       // However, this requires recent authentication
-//       alert("Password changed successfully!");
-//       setCurrentPassword("");
-//       setNewPassword("");
-//       setConfirmPassword("");
-//     };
-  
-//     return (
-//       <div className="space-y-6">
-//         <h1 className="text-2xl font-bold">Account Settings</h1>
-  
-//         {!isEditing ? (
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <div className="space-y-4">
-//               <div>
-//                 <p className="text-sm text-gray-500">Full Name</p>
-//                 <p className="font-medium">{accountData.name}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Email</p>
-//                 <p className="font-medium">{accountData.email}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Phone Number</p>
-//                 <p className="font-medium">{accountData.phone}</p>
-//               </div>
-  
-//               <div>
-//                 <p className="text-sm text-gray-500">Date of Birth</p>
-//                 <p className="font-medium">{formatDate(accountData.birthDate)}</p>
-//               </div>
-              
-//               <div>
-//                 <p className="text-sm text-gray-500">Gender</p>
-//                 <p className="font-medium capitalize">{accountData.gender || "Not specified"}</p>
-//               </div>
-  
-//               <div className="pt-4">
-//                 <button
-//                   onClick={() => {
-//                     setEditData({ ...accountData });
-//                     setIsEditing(true);
-//                   }}
-//                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                 >
-//                   Edit Profile
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         ) : (
-//           <div className="bg-white p-6 rounded-xl shadow-sm">
-//             <div className="space-y-4">
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Full Name</label>
-//                 <input
-//                   type="text"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.name}
-//                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Email</label>
-//                 <input
-//                   type="email"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.email}
-//                   onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-//                   disabled // Email should not be editable as it's the auth identifier
-//                 />
-//                 <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Phone Number</label>
-//                 <input
-//                   type="tel"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.phone}
-//                   onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div>
-//                 <label className="block text-sm font-medium mb-1">Date of Birth</label>
-//                 <input
-//                   type="date"
-//                   className="w-full p-2 border border-gray-300 rounded"
-//                   value={editData.birthDate}
-//                   onChange={(e) => setEditData({ ...editData, birthDate: e.target.value })}
-//                 />
-//               </div>
-  
-//               <div className="flex justify-end space-x-3 pt-4">
-//                 <button
-//                   onClick={() => setIsEditing(false)}
-//                   className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-//                 >
-//                   Cancel
-//                 </button>
-//                 <button
-//                   onClick={handleSave}
-//                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//                 >
-//                   Save Changes
-//                 </button>
-//               </div>
-//             </div>
-//           </div>
-//         )}
-  
-//         <div className="bg-white rounded-xl shadow-sm p-6">
-//           <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-//           <div className="space-y-4">
-//             <div>
-//               <label className="block text-sm font-medium mb-1">Current Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={currentPassword}
-//                 onChange={(e) => setCurrentPassword(e.target.value)}
-//               />
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium mb-1">New Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={newPassword}
-//                 onChange={(e) => setNewPassword(e.target.value)}
-//               />
-//             </div>
-//             <div>
-//               <label className="block text-sm font-medium mb-1">Confirm New Password</label>
-//               <input
-//                 type="password"
-//                 className="w-full p-2 border border-gray-300 hover:bg-blue-50/50 transition-all duration-200 outline-none focus:border-blue-500 rounded"
-//                 value={confirmPassword}
-//                 onChange={(e) => setConfirmPassword(e.target.value)}
-//               />
-//             </div>
-//             {passwordError && (
-//               <div className="text-red-500 text-sm">{passwordError}</div>
-//             )}
-//             <div className="flex justify-end pt-4">
-//               <button
-//                 onClick={handleChangePassword}
-//                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//               >
-//                 Update Password
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     );
-//   };
-  
-//   const renderActiveView = () => {
-//     switch(activeView) {
-//       case "appointments": return <AppointmentManagement />;
-//       case "payments": return <PaymentHistory />;
-//       case "account": return <AccountSettings />;
-//       default: return <AppointmentManagement />;
-//     }
-//   };
-
-//   if (loading) {
-//     return (
-//       <div className="w-full min-h-screen bg-blue-50 flex items-center justify-center">
-//         <div className="text-center">
-//           <p className="text-xl">Loading...</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div className="w-full min-h-screen bg-blue-50 text-black">
-//       <div className="flex w-full relative">
-//         <div className="bg-white shadow-md p-6 w-[25%] min-h-screen fixed top-0 left-0 z-10">
-//           <div className="flex items-center mb-8 flex-col">
-//             <img 
-//               src={`/assets/${accountData.gender === 'female' ? 'patient_female.jpg' : 'patient_1.jpg'}`} 
-//               className="rounded-full aspect-square w-[35%] mb-3" 
-//               alt="Patient profile" 
-//             />
-//             <div className="w-full text-center">
-//               <h2 className="text-xl font-semibold">{accountData.name}</h2>
-//               <p className="text-gray-600">Patient</p>
-//             </div>
-//           </div>
-//           <div className="nav flex flex-col h-full">
-//             <nav className="space-y-2">
-//               <button
-//                 onClick={() => setActiveView("appointments")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                   activeView === "appointments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//               >
-//                 <Calendar size={20} className="mr-3" />
-//                 My Appointments
-//               </button>
-//               <button
-//                 onClick={() => setActiveView("payments")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                   activeView === "payments" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//               >
-//                 <CurrencyDollar size={20} className="mr-3" />
-//                 Payment History
-//               </button>
-//               <button
-//                 onClick={() => setActiveView("account")}
-//                 className={`flex items-center w-full text-left p-3 rounded-lg transition ${
-//                   activeView === "account" ? "bg-blue-50 text-blue-600 font-medium" : "hover:bg-gray-100"
-//                 }`}
-//               >
-//                 <User size={20} className="mr-3" />
-//                 Account Settings
-//               </button>
-//             </nav>
-//             <div className="mt-auto space-y-2">
-//               <Link href="/" className="w-full p-3 font-medium rounded-lg bg-blue-500 hover:bg-blue-700 transition-all duration-100 flex items-center text-white">
-//                 <House size={20} className="mr-3"/>
-//                 <h1>Home</h1>
-//               </Link>
-//               <button 
-//                 onClick={handleSignOut}
-//                 className="w-full p-3 font-medium rounded-lg bg-red-100 text-red-800 hover:bg-red-200 transition-all duration-100 flex items-center"
-//               >
-//                 Sign Out
-//               </button>
-//             </div>
-//           </div>
-//         </div>
-
-//         <div className="w-[25%]"></div>
-
-//         <div className="w-[75%] p-8">
-//           {renderActiveView()}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
+"use client";
+import { useState, useEffect, useRef } from "react";
+import {
+  User,
+  Calendar,
+  CurrencyDollar,
+  House,
+  Clock,
+  FirstAid,
+  Receipt,
+  Camera,
+} from "@phosphor-icons/react";
+import Link from "next/link";
+import { auth, db, storage } from "../../../lib/firebase";
+import {
+  onAuthStateChanged,
+  signOut,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+  updateProfile,
+} from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  writeBatch,
+  updateDoc,
+  limit,
+} from "firebase/firestore";
+import {
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import { useRouter } from "next/navigation";
+
+export default function PatientDashboard() {
+  const [activeView, setActiveView] = useState("appointments");
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [appointments, setAppointments] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [accountData, setAccountData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    birthDate: "",
+    gender: "",
+    photoUrl: "",
+  });
+  const [selectedItem, setSelectedItem] = useState(null);
+  const fileInputRef = useRef(null);
+  const router = useRouter();
+
+  // Formatting functions
+  const formatDate = (date) => {
+    if (!date) return "N/A";
+    const d = date?.toDate?.() || new Date(date);
+    return d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatTime = (time) => time || "N/A";
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount || 0);
+  };
+
+  // Data fetching
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        try {
+          await fetchUserData(currentUser.uid);
+          await fetchAllData(currentUser.uid);
+        } catch (error) {
+          console.error("Error loading data:", error);
+        }
+      } else {
+        router.push("/sign-in");
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  const fetchUserData = async (uid) => {
+    try {
+      const userDoc = await getDoc(doc(db, "users", uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setAccountData({
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          birthDate: data.birthDate || "",
+          gender: data.gender || "",
+          photoUrl: data.photoUrl || "",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+    }
+  };
+
+  const fetchAllData = async (uid) => {
+    try {
+      const [appointmentsData, paymentsData] = await Promise.all([
+        fetchAppointments(uid),
+        fetchPayments(uid),
+      ]);
+
+      // Link payments to appointments
+      const paymentsWithAppointments = await Promise.all(
+        paymentsData.map(async (payment) => {
+          if (payment.appointmentId) {
+            const appointmentDoc = await getDoc(
+              doc(db, "appointments", payment.appointmentId)
+            );
+            if (appointmentDoc.exists()) {
+              payment.appointment = {
+                id: appointmentDoc.id,
+                ...appointmentDoc.data(),
+                date:
+                  appointmentDoc.data().date?.toDate?.() ||
+                  new Date(appointmentDoc.data().date),
+              };
+            }
+          }
+          return payment;
+        })
+      );
+
+      setAppointments(appointmentsData);
+      setPayments(paymentsWithAppointments);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  const fetchAppointments = async (uid) => {
+    try {
+      const q = query(
+        collection(db, "appointments"),
+        where("patientId", "==", uid)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          date: doc.data().date?.toDate?.() || new Date(doc.data().date),
+        }))
+        .sort((a, b) => b.date - a.date);
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      return [];
+    }
+  };
+
+  const fetchPayments = async (uid) => {
+    try {
+      const q = query(
+        collection(db, "payments"),
+        where("patientId", "==", uid)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          date: doc.data().date?.toDate?.() || new Date(doc.data().date),
+        }))
+        .sort((a, b) => b.date - a.date);
+    } catch (error) {
+      console.error("Error fetching payments:", error);
+      return [];
+    }
+  };
+
+  const AccountView = () => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState({ ...accountData });
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [passwordSuccess, setPasswordSuccess] = useState("");
+    const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [tempPhotoUrl, setTempPhotoUrl] = useState("");
+
+    const handleImageChange = async (e) => {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+
+        // Validate image
+        if (!file.type.match("image.*")) {
+          setPasswordError("File harus berupa gambar");
+          return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+          // 2MB
+          setPasswordError("Ukuran gambar terlalu besar (maksimal 2MB)");
+          return;
+        }
+
+        setIsUploading(true);
+        setPasswordError("");
+
+        try {
+          // Create preview
+          const reader = new FileReader();
+          reader.onload = (e) => setTempPhotoUrl(e.target.result);
+          reader.readAsDataURL(file);
+
+          setIsUploading(false);
+        } catch (error) {
+          console.error("Error creating preview:", error);
+          setPasswordError("Gagal memproses gambar");
+          setIsUploading(false);
+        }
+      }
+    };
+
+    const triggerFileInput = () => {
+      fileInputRef.current.click();
+    };
+
+    const uploadProfileImage = async (file) => {
+      if (!file || !user) return null;
+
+      try {
+        // Delete old image if exists
+        if (
+          accountData.photoUrl &&
+          accountData.photoUrl.startsWith("https://")
+        ) {
+          const oldImageRef = ref(storage, accountData.photoUrl);
+          await deleteObject(oldImageRef).catch(() => {});
+        }
+
+        // Upload new image
+        const storageRef = ref(
+          storage,
+          `profile_images/${user.uid}/${Date.now()}`
+        );
+        const snapshot = await uploadBytes(storageRef, file);
+        return await getDownloadURL(snapshot.ref);
+      } catch (error) {
+        console.error("Error uploading image:", error);
+        throw error;
+      }
+    };
+
+    const handleSave = async () => {
+      try {
+        if (!user) return;
+
+        setIsPasswordLoading(true);
+        setPasswordError("");
+        setPasswordSuccess("");
+
+        let photoUrl = accountData.photoUrl;
+
+        // Upload new image if exists
+        if (tempPhotoUrl && fileInputRef.current.files[0]) {
+          photoUrl = await uploadProfileImage(fileInputRef.current.files[0]);
+
+          // Update photoURL in Firebase Auth
+          await updateProfile(user, {
+            displayName: editData.name,
+            photoURL: photoUrl,
+          });
+        }
+
+        // Update user document in Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        await updateDoc(userDocRef, {
+          name: editData.name,
+          phone: editData.phone,
+          birthDate: editData.birthDate,
+          gender: editData.gender,
+          photoUrl: photoUrl,
+          updatedAt: new Date(),
+        });
+
+        // Update local state
+        setAccountData({
+          ...editData,
+          photoUrl: photoUrl,
+        });
+        setTempPhotoUrl("");
+        setIsEditing(false);
+        setPasswordSuccess("Profile updated successfully!");
+      } catch (error) {
+        console.error("Error updating profile:", error);
+        setPasswordError("Failed to update profile. Please try again.");
+      } finally {
+        setIsPasswordLoading(false);
+      }
+    };
+
+    const handleChangePassword = async () => {
+      setPasswordError("");
+      setPasswordSuccess("");
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        setPasswordError("Please fill in all password fields.");
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        setPasswordError("New passwords do not match.");
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        setPasswordError("Password must be at least 6 characters long.");
+        return;
+      }
+
+      try {
+        setIsPasswordLoading(true);
+
+        // Reauthenticate user
+        const credential = EmailAuthProvider.credential(
+          user.email,
+          currentPassword
+        );
+        await reauthenticateWithCredential(user, credential);
+
+        // Update password
+        await updatePassword(user, newPassword);
+
+        // Update Firestore with password change timestamp
+        const userDocRef = doc(db, "users", user.uid);
+        await updateDoc(userDocRef, {
+          lastPasswordChange: new Date().toISOString(),
+        });
+
+        // Clear form and show success
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setPasswordSuccess("Password changed successfully!");
+      } catch (error) {
+        console.error("Error changing password:", error);
+
+        if (error.code === "auth/wrong-password") {
+          setPasswordError("Current password is incorrect.");
+        } else if (error.code === "auth/too-many-requests") {
+          setPasswordError(
+            "Too many unsuccessful attempts. Please try again later."
+          );
+        } else {
+          setPasswordError("Failed to change password. " + error.message);
+        }
+      } finally {
+        setIsPasswordLoading(false);
+      }
+    };
+
+    return (
+      <div className="space-y-6 text-black">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <User size={24} /> Account Settings
+        </h1>
+
+        {/* Profile Information Section */}
+        <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Profile Information</h2>
+            {!isEditing ? (
+              <button
+                onClick={() => {
+                  setEditData({ ...accountData });
+                  setIsEditing(true);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Edit Profile
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setTempPhotoUrl("");
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isPasswordLoading}
+                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                    isPasswordLoading ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  {isPasswordLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {!isEditing ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative group">
+                <img
+                  src={accountData.photoUrl || "/assets/default-profile.jpg"}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
+                  onError={(e) => {
+                    e.target.src = "/assets/default-profile.jpg";
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                <div>
+                  <p className="text-sm text-gray-500">Full Name</p>
+                  <p className="font-medium">{accountData.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Email</p>
+                  <p className="font-medium">{accountData.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Phone Number</p>
+                  <p className="font-medium">
+                    {accountData.phone || "Not provided"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Date of Birth</p>
+                  <p className="font-medium">
+                    {accountData.birthDate
+                      ? formatDate(accountData.birthDate)
+                      : "Not provided"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Gender</p>
+                  <p className="font-medium capitalize">
+                    {accountData.gender || "Not specified"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative group">
+                <div
+                  className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden cursor-pointer border-2 border-gray-300 hover:border-blue-500 transition-colors"
+                  onClick={triggerFileInput}
+                >
+                  {tempPhotoUrl ? (
+                    <img
+                      src={tempPhotoUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : accountData.photoUrl ? (
+                    <img
+                      src={accountData.photoUrl}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = "/assets/default-profile.jpg";
+                      }}
+                    />
+                  ) : (
+                    <Camera size={32} className="text-gray-400" />
+                  )}
+                </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  Click to change photo (max 2MB)
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    value={editData.name}
+                    onChange={(e) =>
+                      setEditData({ ...editData, name: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100"
+                    value={editData.email}
+                    disabled
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Email cannot be changed
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    value={editData.phone}
+                    onChange={(e) =>
+                      setEditData({ ...editData, phone: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Date of Birth
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    value={editData.birthDate}
+                    onChange={(e) =>
+                      setEditData({ ...editData, birthDate: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Gender
+                  </label>
+                  <select
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    value={editData.gender}
+                    onChange={(e) =>
+                      setEditData({ ...editData, gender: e.target.value })
+                    }
+                  >
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Change Password Section */}
+        <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+          <h2 className="text-lg font-semibold mb-4">Change Password</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Current Password
+              </label>
+              <input
+                type="password"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                New Password
+              </label>
+              <input
+                type="password"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+              />
+            </div>
+          </div>
+
+          {(passwordError || passwordSuccess) && (
+            <div
+              className={`mt-4 p-3 rounded-lg ${
+                passwordError
+                  ? "bg-red-50 text-red-700"
+                  : "bg-green-50 text-green-700"
+              }`}
+            >
+              {passwordError || passwordSuccess}
+            </div>
+          )}
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={handleChangePassword}
+              disabled={isPasswordLoading}
+              className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                isPasswordLoading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {isPasswordLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg
+                    className="animate-spin h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Updating...
+                </span>
+              ) : (
+                "Update Password"
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const AppointmentsView = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <FirstAid size={24} /> My Appointments
+        </h1>
+        <button
+          onClick={() => fetchAllData(user.uid)}
+          className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {appointments.length === 0 ? (
+        <div className="bg-white p-8 rounded-xl shadow text-center">
+          <p className="text-gray-500">No appointments found</p>
+          <Link
+            href="/appointment"
+            className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Book an Appointment
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {appointments.map((appointment) => (
+            <div
+              key={appointment.id}
+              className="bg-white p-5 rounded-xl shadow hover:shadow-md transition-shadow cursor-pointer border border-gray-100"
+              onClick={() =>
+                setSelectedItem({ type: "appointment", data: appointment })
+              }
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-bold text-lg">
+                    {appointment.doctorName}
+                  </h3>
+                  <p className="text-gray-600 text-sm">
+                    {appointment.specialization}
+                  </p>
+                </div>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs ${
+                    appointment.status === "confirmed"
+                      ? "bg-blue-100 text-blue-800"
+                      : appointment.status === "completed"
+                      ? "bg-green-100 text-green-800"
+                      : appointment.status === "cancelled"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
+                  {appointment.status}
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Calendar size={16} />
+                  <span>{formatDate(appointment.date)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Clock size={16} />
+                  <span>{formatTime(appointment.time)}</span>
+                </div>
+                <div className="pt-2">
+                  <p className="font-medium text-gray-700">Complaint:</p>
+                  <p className="text-gray-600">
+                    {appointment.complaint || "Not specified"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
+                <span className="font-semibold text-blue-600">
+                  {formatCurrency(appointment.price)}
+                </span>
+                {appointment.status === "confirmed" && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancelAppointment(appointment.id);
+                    }}
+                    className="px-3 py-1 text-xs text-red-600 hover:text-red-800 bg-red-50 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const PaymentsView = () => {
+    const stats = {
+      total: payments.reduce((sum, p) => sum + (p.amount || 0), 0),
+      completed: payments.filter((p) => p.status === "completed").length,
+      pending: payments.filter((p) => p.status === "pending").length,
+    };
+
+    return (
+      <div className="space-y-6 text-black">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Receipt size={24} /> Payment History
+          </h1>
+          <button
+            onClick={() => fetchAllData(user.uid)}
+            className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-4 rounded-xl shadow border border-gray-100">
+            <p className="text-gray-500 text-sm">Total Spent</p>
+            <p className="text-2xl font-bold">{formatCurrency(stats.total)}</p>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow border border-gray-100">
+            <p className="text-gray-500 text-sm">Completed Payments</p>
+            <p className="text-2xl font-bold">{stats.completed}</p>
+          </div>
+          <div className="bg-white p-4 rounded-xl shadow border border-gray-100">
+            <p className="text-gray-500 text-sm">Pending Payments</p>
+            <p className="text-2xl font-bold">{stats.pending}</p>
+          </div>
+        </div>
+
+        {payments.length === 0 ? (
+          <div className="bg-white p-8 rounded-xl shadow text-center border border-gray-100">
+            <p className="text-gray-500">No payment records found</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-100">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-blue-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Description
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {payments.map((payment) => (
+                    <tr
+                      key={payment.id}
+                      className="hover:bg-blue-50 cursor-pointer"
+                      onClick={() =>
+                        setSelectedItem({ type: "payment", data: payment })
+                      }
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(payment.date)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {payment.description}
+                        </div>
+                        {payment.appointment && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {formatDate(payment.appointment.date)} at{" "}
+                            {payment.appointment.time}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatCurrency(payment.amount)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            payment.status === "completed"
+                              ? "bg-green-100 text-green-800"
+                              : payment.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {payment.status === "pending" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePayNow(payment.id);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            Pay Now
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const DetailModal = () => {
+    if (!selectedItem) return null;
+
+    const { type, data } = selectedItem;
+    const isAppointment = type === "appointment";
+    const isPayment = type === "payment";
+
+    return (
+      <div className="fixed inset-0 text-black bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">
+                {isAppointment ? "Appointment Details" : "Payment Details"}
+              </h2>
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {isAppointment && (
+                <>
+                  <div className="pb-4 border-b border-gray-100">
+                    <p className="text-sm text-gray-500">Doctor</p>
+                    <p className="font-medium text-lg">{data.doctorName}</p>
+                    <p className="text-gray-600">{data.specialization}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-100">
+                    <div>
+                      <p className="text-sm text-gray-500">Date</p>
+                      <p className="font-medium">{formatDate(data.date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Time</p>
+                      <p className="font-medium">{formatTime(data.time)}</p>
+                    </div>
+                  </div>
+
+                  <div className="pb-4 border-b border-gray-100">
+                    <p className="text-sm text-gray-500">Complaint</p>
+                    <p className="font-medium">
+                      {data.complaint || "Not specified"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-100">
+                    <div>
+                      <p className="text-sm text-gray-500">Price</p>
+                      <p className="font-medium text-blue-600">
+                        {formatCurrency(data.price)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Status</p>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          data.status === "confirmed"
+                            ? "bg-blue-100 text-blue-800"
+                            : data.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : data.status === "cancelled"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {data.status}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {isPayment && (
+                <>
+                  <div className="pb-4 border-b border-gray-100">
+                    <p className="text-sm text-gray-500">Payment ID</p>
+                    <p className="font-medium">
+                      {data.id.substring(0, 8).toUpperCase()}
+                    </p>
+                  </div>
+
+                  <div className="pb-4 border-b border-gray-100">
+                    <p className="text-sm text-gray-500">Description</p>
+                    <p className="font-medium">{data.description}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-100">
+                    <div>
+                      <p className="text-sm text-gray-500">Amount</p>
+                      <p className="font-medium text-blue-600">
+                        {formatCurrency(data.amount)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Payment Method</p>
+                      <p className="font-medium capitalize">
+                        {data.paymentMethod || "Not specified"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pb-4 border-b border-gray-100">
+                    <p className="text-sm text-gray-500">Status</p>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs ${
+                        data.status === "completed"
+                          ? "bg-green-100 text-green-800"
+                          : data.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {data.status}
+                    </span>
+                  </div>
+
+                  {data.appointment && (
+                    <div className="pt-2">
+                      <p className="font-medium text-gray-700 mb-2">
+                        Associated Appointment
+                      </p>
+                      <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm">
+                          <FirstAid size={16} className="text-gray-500" />
+                          <span className="font-medium">
+                            {data.appointment.doctorName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm mt-1 text-gray-600">
+                          <Calendar size={16} />
+                          <span>{formatDate(data.appointment.date)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm mt-1 text-gray-600">
+                          <Clock size={16} />
+                          <span>{data.appointment.time}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen text-black bg-blue-50">
+      {/* Sidebar*/}
+      <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
+        <div className="flex flex-col h-full">
+          <div className="p-4 flex items-center gap-3 border-b border-gray-200">
+            <div className="relative">
+              <img
+                src={accountData.photoUrl || "/assets/default-profile.jpg"}
+                alt="Profile"
+                className="w-10 h-10 rounded-full object-cover border border-gray-300"
+                onError={(e) => {
+                  e.target.src = "/assets/default-profile.jpg";
+                }}
+              />
+            </div>
+            <div>
+              <h2 className="font-semibold">{accountData.name}</h2>
+              <p className="text-xs text-gray-500">Patient</p>
+            </div>
+          </div>
+
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            <button
+              onClick={() => setActiveView("appointments")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left ${
+                activeView === "appointments"
+                  ? "bg-blue-100 text-blue-600"
+                  : "hover:bg-gray-100"
+              } transition-colors`}
+            >
+              <FirstAid size={20} />
+              Appointments
+            </button>
+            <button
+              onClick={() => setActiveView("payments")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left ${
+                activeView === "payments"
+                  ? "bg-blue-100 text-blue-600"
+                  : "hover:bg-gray-100"
+              } transition-colors`}
+            >
+              <Receipt size={20} />
+              Payments
+            </button>
+            <button
+              onClick={() => setActiveView("account")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left ${
+                activeView === "account"
+                  ? "bg-blue-100 text-blue-600"
+                  : "hover:bg-gray-100"
+              } transition-colors`}
+            >
+              <User size={20} />
+              Account
+            </button>
+          </nav>
+
+          <div className="p-4 border-t border-gray-200 flex flex-col gap-2">
+            <Link
+              href="/"
+              className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-1000 hover:text-white bg-blue-100 text-blue-600 transition-colors"
+            >
+              <House size={20} />
+              Back to Home
+            </Link>
+            <button
+              onClick={() => signOut(auth)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left bg-red-100 hover:bg-red-400 hover:text-white text-red-600 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="ml-64 p-8">
+        {activeView === "appointments" && <AppointmentsView />}
+        {activeView === "payments" && <PaymentsView />}
+        {activeView === "account" && <AccountView />}
+      </div>
+
+      <DetailModal />
+    </div>
+  );
+}

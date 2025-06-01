@@ -1,0 +1,90 @@
+@startuml
+
+hide stereotypes
+hide circle
+
+class User {
+  * id_user: Characters(5)
+  username: Characters(20)
+  email: Characters(30)
+  phone: Characters(13)
+  avatar: LongBlob
+  address: VarChar(50)
+  user_created_at: Date
+  user_updated_at: Date
+  --
+  + register()
+  + login()
+  + updateProfile()
+  + addBookmark(plantId)
+  + removeBookmark(bookmarkId)
+  + trackPlantProgress()
+}
+
+class Admin {
+  * id_admin: Characters(5)
+  email_admin: Characters(30)
+  --
+  + addPlant()
+  + updatePlant()
+  + deletePlant()
+  + manageUser()
+  + generateReport()
+}
+
+class Plant {
+  * id_plant: Characters(5)
+  plant_name: VarChar(100)
+  plant_image: LongBlob
+  duration: Integer
+  guides: Text
+  targets: Text
+  dailies: Text
+  products: Text
+  plant_created_at: Date
+  plant_update_at: Date
+  --
+  + getPlantDetails()
+  + calculateGrowthProgress()
+  + suggestDailyTasks()
+}
+
+class UserPlants {
+  * id_user_plant: Characters(5)
+  status: Characters(10)
+  start_date: Date
+  progress: Float
+  dailies_status: Boolean
+  target_status: Boolean
+  --
+  + updateProgress()
+  + checkDailyCompletion()
+  + checkTargetCompletion()
+  + sendReminder()
+}
+
+class Bookmark {
+  * id_plant: Characters(5)
+  * id_user: Characters(5)
+  --
+  + addToBookmark()
+  + removeFromBookmark()
+}
+
+class Mengelola {
+  * id_admin: Characters(5)
+  * id_plant: Characters(5)
+  --
+  + assignManagement()
+  + revokeManagement()
+}
+
+' RELATIONS
+User ||--o{ UserPlants : "Memiliki"
+User ||--o{ Bookmark : "Menyimpan"
+Plant ||--o{ UserPlants : "Dimiliki"
+Plant ||--o{ Bookmark : "Ditandai"
+Admin ||--o{ Mengelola : "Mengelola"
+Plant ||--o{ Mengelola : "Dikelola"
+
+@enduml

@@ -26,6 +26,7 @@ import {
   ChartBar,
   Spinner,
   Warning,
+  SignOut,
 } from "@phosphor-icons/react/dist/ssr";
 import { Bar } from "react-chartjs-2";
 import {
@@ -52,7 +53,7 @@ const LoadingIndicator = () => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="text-center">
       <Spinner className="animate-spin h-12 w-12 text-blue-500 mx-auto" />
-      <p className="mt-4">Memuat dashboard...</p>
+      <p className="mt-4">Loading dashboard...</p>
     </div>
   </div>
 );
@@ -62,14 +63,14 @@ const ErrorDisplay = ({ message, onRetry }) => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="text-center p-6 bg-red-50 rounded-lg max-w-md">
       <Warning className="h-12 w-12 text-red-500 mx-auto" />
-      <h3 className="text-lg font-medium mt-2">Terjadi Kesalahan</h3>
+      <h3 className="text-lg font-medium mt-2">Error Occurred</h3>
       <p className="text-gray-600 mt-1">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
           className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
-          Coba Lagi
+          Try Again
         </button>
       )}
     </div>
@@ -157,7 +158,7 @@ const StatisticsDashboard = ({
     maintainAspectRatio: false,
   };
 
-  const totalPatients = users.filter((u) => u?.role === "patient").length;
+  const totalPatients = users.filter((u) => u?.role === "user").length;
   const totalDoctors = users.filter((u) => u?.role === "doctor").length;
   const totalAdmins = users.filter((u) => u?.role === "admin").length;
   const onlineUsers = users.filter((u) => u?.status === "online").length;
@@ -168,7 +169,7 @@ const StatisticsDashboard = ({
     (a) => a?.status === "completed"
   ).length;
   const pendingAppointments = appointments.filter(
-    (a) => a?.status === "waiting"
+    (a) => a?.status === "confirmed"
   ).length;
 
   const totalRevenue = payments.reduce(
@@ -217,10 +218,10 @@ const StatisticsDashboard = ({
             bg: "bg-yellow-100",
           },
         ].map((stat, index) => (
-          <div key={index} className="bg-white p-6 rounded-xl shadow-sm">
+          <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-500">{stat.title}</p>
+                <p className="text-gray-500 text-sm">{stat.title}</p>
                 <p className="text-2xl font-bold">{stat.value}</p>
                 <p
                   className={`text-sm mt-1 ${
@@ -240,7 +241,7 @@ const StatisticsDashboard = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* User Statistics */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="font-semibold mb-4">User Statistics</h3>
           <div className="space-y-3">
             <div>
@@ -285,7 +286,7 @@ const StatisticsDashboard = ({
         </div>
 
         {/* Appointment Statistics */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="font-semibold mb-4">Appointment Statistics</h3>
           <div className="space-y-3">
             <div>
@@ -336,7 +337,7 @@ const StatisticsDashboard = ({
         </div>
 
         {/* Payment Statistics */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="font-semibold mb-4">Payment Statistics</h3>
           <div className="space-y-3">
             <div>
@@ -381,7 +382,7 @@ const StatisticsDashboard = ({
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-sm">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <div className="h-80">
           <Bar data={chartData} options={chartOptions} />
         </div>
@@ -389,7 +390,7 @@ const StatisticsDashboard = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Recent Appointments */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="font-semibold mb-4">Recent Appointments</h3>
           <div className="space-y-3">
             {appointments.slice(0, 3).map((app) => {
@@ -414,12 +415,11 @@ const StatisticsDashboard = ({
         </div>
 
         {/* Recent Payments */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="font-semibold mb-4">Recent Payments</h3>
           <div className="space-y-3">
             {payments.slice(0, 3).map((payment) => {
               const patient = users.find((u) => u.id === payment.patientId);
-              const doctor = users.find((u) => u.id === payment.doctorId);
               return (
                 <div
                   key={payment.id}
@@ -439,7 +439,7 @@ const StatisticsDashboard = ({
         </div>
 
         {/* Recent Articles */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="font-semibold mb-4">Recent Articles</h3>
           <div className="space-y-3">
             {news.slice(0, 3).map((article) => (
@@ -482,7 +482,7 @@ const UserManagement = ({ users = [], onRefresh }) => {
       id: user.id,
       name: user.name || "",
       email: user.email || "",
-      role: user.role || "patient",
+      role: user.role || "user",
       status: user.status || "offline",
     });
     setIsEditing(true);
@@ -567,7 +567,7 @@ const UserManagement = ({ users = [], onRefresh }) => {
         </div>
       )}
 
-      <div className="bg-white p-6 rounded-xl shadow-sm">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-4">
             <input
@@ -599,14 +599,14 @@ const UserManagement = ({ users = [], onRefresh }) => {
             >
               <option value="all">All</option>
               <option value="doctor">Doctor</option>
-              <option value="patient">Patient</option>
+              <option value="user">Patient</option>
               <option value="admin">Admin</option>
             </select>
           </div>
         </form>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -642,7 +642,7 @@ const UserManagement = ({ users = [], onRefresh }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 capitalize">
-                      {user.role || "Patient"}
+                      {user.role || "User"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-gray-500">
@@ -693,10 +693,10 @@ const UserManagement = ({ users = [], onRefresh }) => {
               <h2 className="text-xl font-bold">Edit User</h2>
               <button
                 onClick={() => setIsEditing(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
                 disabled={isUpdating}
               >
-                ✕
+                &times;
               </button>
             </div>
 
@@ -738,7 +738,7 @@ const UserManagement = ({ users = [], onRefresh }) => {
                   disabled={isUpdating}
                 >
                   <option value="doctor">Doctor</option>
-                  <option value="patient">Patient</option>
+                  <option value="user">Patient</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
@@ -803,6 +803,14 @@ const AppointmentManagement = ({ appointments = [], users = [], onRefresh }) => 
       month: "long",
       year: "numeric",
     });
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(amount || 0);
   };
 
   const handleStatusChange = async (appointmentId, newStatus) => {
@@ -950,7 +958,7 @@ const AppointmentManagement = ({ appointments = [], users = [], onRefresh }) => 
       </div>
 
       {selectedAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Appointment Details</h2>

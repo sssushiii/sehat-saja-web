@@ -22,13 +22,18 @@ export default function NavbarWhite() {
         if (docSnapshot.exists()) {
           const userData = docSnapshot.data();
           setUser({
-            email: currentUser.email,
+            ...currentUser,
             name: userData.name || "",
-            fullName: userData.fullName || "",
-            photoURL: currentUser.photoURL || "",
+            email: userData.email || "",
+            photoUrl: userData.photoUrl || currentUser.photoURL || ""
           });
         } else {
-          setUser(null);
+          setUser({
+            ...currentUser,
+            name: currentUser.name || "",
+            email: currentUser.email || "",
+            photoUrl: currentUser.photoURL || ""
+          });
         }
       } else {
         setUser(null);
@@ -83,14 +88,19 @@ export default function NavbarWhite() {
       <div className="logreg flex flex-row h-full items-center justify-end gap-2 font-medium">
         {user ? (
           <div className="flex items-center gap-3">
-            <img
-              src={user.photoURL || "/assets/default-profile.jpg"}
-              alt="Profile"
-              className="w-10 h-10 rounded-full object-cover border border-gray-300"
-            />
+            <Link href="../../dashboard/patient">
+              <img
+                src={user.photoUrl || "/assets/default-profile.jpg"}
+                alt="Profile"
+                className="w-10 h-10 rounded-full object-cover border border-gray-300"
+                onError={(e) => {
+                  e.target.src = "/assets/default-profile.jpg";
+                }}
+              />
+            </Link>
             <div className="text-sm text-right hidden md:block">
               <p className="text-black font-semibold">
-                {user.name || "User"}
+                {user.name || user.displayName || "User"}
               </p>
               <p className="text-gray-600 text-xs">{user.email}</p>
             </div>
