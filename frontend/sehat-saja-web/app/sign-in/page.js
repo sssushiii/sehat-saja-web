@@ -29,7 +29,7 @@ export default function SignIn() {
 
             if (docSnap.exists()) {
                 const userData = docSnap.data();
-                if (userData.role === 'user') {
+                if (userData.role === 'user' || 'admin') {
                     router.push('/');
                 } else {
                     setError('Access denied: You do not have permission to log in as a user.');

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   User,
   Calendar,
@@ -11,6 +11,9 @@ import {
   Camera,
   UsersThree,
   CaretRight,
+  ChatCircleDots,
+  Images,
+  Archive,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -34,6 +37,10 @@ import {
   addDoc,
   deleteDoc,
   Timestamp,
+  onSnapshot,
+  arrayUnion,
+  serverTimestamp,
+  limit,
 } from "firebase/firestore";
 import {
   ref,
@@ -54,6 +61,13 @@ export default function DoctorDashboard() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [newTime, setNewTime] = useState("");
   const [selectedItem, setSelectedItem] = useState(null);
+  const [activeChats, setActiveChats] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [imageUpload, setImageUpload] = useState(null);
+  const chatFileInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const router = useRouter();
 
@@ -131,19 +145,61 @@ export default function DoctorDashboard() {
         where("doctorId", "==", uid)
       );
       const snapshot = await getDocs(q);
-      const appointmentsData = snapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          patientName: doc.data().patientName || "",
-          patientAge: doc.data().patientAge || "",
-          date: doc.data().date?.toDate?.() || new Date(doc.data().date),
-          time: doc.data().time || "",
-          complaint: doc.data().complaint || "",
-          status: doc.data().status || "pending",
-        }))
-        .sort((a, b) => b.date - a.date);
 
-      return appointmentsData;
+      const appointmentPromises = snapshot.docs.map(async (docSnap) => {
+        const appointmentData = docSnap.data();
+
+        let patientName = appointmentData.patientName || "Unknown";
+        let patientAge = appointmentData.patientAge || "N/A";
+
+        if (appointmentData.patientId) {
+          try {
+            const patientRef = doc(db, "users", appointmentData.patientId);
+            const patientDoc = await getDoc(patientRef);
+
+            if (patientDoc.exists()) {
+              const patientData = patientDoc.data();
+              patientName = patientData.name || "Unknown";
+
+              // Hitung umur dari birthDate
+              if (patientData.birthDate) {
+                const birthDate = new Date(patientData.birthDate);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (
+                  m < 0 ||
+                  (m === 0 && today.getDate() < birthDate.getDate())
+                ) {
+                  age--;
+                }
+                patientAge = age;
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching patient data:", error);
+          }
+        }
+
+        return {
+          id: docSnap.id,
+          patientId: appointmentData.patientId || "",
+          patientName,
+          patientAge,
+          date:
+            appointmentData.date?.toDate?.() ||
+            new Date(appointmentData.date || Date.now()),
+          time: appointmentData.appointmentTime || "N/A",
+          complaint: appointmentData.complaint || "",
+          status: appointmentData.status || "pending",
+          createdAt:
+            appointmentData.createdAt?.toDate?.() ||
+            new Date(appointmentData.createdAt || Date.now()),
+        };
+      });
+
+      const resolvedAppointments = await Promise.all(appointmentPromises);
+      return resolvedAppointments.sort((a, b) => b.date - a.date);
     } catch (error) {
       console.error("Error fetching appointments:", error);
       return [];
@@ -173,18 +229,50 @@ export default function DoctorDashboard() {
 
   const fetchPayments = async (uid) => {
     try {
-      const q = query(collection(db, "payments"), where("doctorId", "==", uid));
-      const snapshot = await getDocs(q);
-      const paymentsData = snapshot.docs
-        .map((doc) => ({
-          id: doc.id,
-          patientName: doc.data().patientName || "",
-          amount: doc.data().amount || 0,
-          method: doc.data().method || "",
-          status: doc.data().status || "pending",
-          date: doc.data().date?.toDate?.() || new Date(doc.data().date),
-        }))
-        .sort((a, b) => b.date - a.date);
+      // Cari payments berdasarkan appointmentId yang terkait dengan doctor
+      const appointmentsQuery = query(
+        collection(db, "appointments"),
+        where("doctorId", "==", uid)
+      );
+      const appointmentsSnapshot = await getDocs(appointmentsQuery);
+      const appointmentIds = appointmentsSnapshot.docs.map((doc) => doc.id);
+
+      if (appointmentIds.length === 0) {
+        return [];
+      }
+
+      // Fetch payments yang appointmentId nya ada di list appointmentIds
+      const paymentsQuery = query(collection(db, "payments"));
+      const paymentsSnapshot = await getDocs(paymentsQuery);
+
+      const paymentsData = paymentsSnapshot.docs
+        .map((doc) => {
+          const paymentData = doc.data();
+
+          // Filter hanya payment yang appointmentId nya sesuai dengan appointments doctor ini
+          if (appointmentIds.includes(paymentData.appointmentId)) {
+            return {
+              id: doc.id,
+              appointmentId: paymentData.appointmentId || "",
+              patientId: paymentData.patientId || "",
+              patientName: paymentData.patientName || "",
+              amount: paymentData.amount || 0,
+              paymentMethod: paymentData.paymentMethod || "",
+              status: paymentData.status || "pending",
+              description: paymentData.description || "",
+              paymentDate:
+                paymentData.paymentDate?.toDate?.() ||
+                new Date(paymentData.paymentDate),
+              paidAt: paymentData.paidAt?.toDate?.() || null,
+              createdAt:
+                paymentData.createdAt?.toDate?.() ||
+                new Date(paymentData.createdAt),
+            };
+          }
+          return null;
+        })
+        .filter((payment) => payment !== null)
+        .sort((a, b) => b.paymentDate - a.paymentDate);
 
       return paymentsData;
     } catch (error) {
@@ -251,16 +339,28 @@ export default function DoctorDashboard() {
     if (!selectedDate || !newTime) return;
 
     try {
-      const selectedDateObj = new Date(currentYear, currentMonth, selectedDate);
-      const dateString = selectedDateObj.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+      // FORMAT TANGGAL YANG SEDERHANA - HINDARI TIMEZONE ISSUES
+      const year = currentYear;
+      const month = String(currentMonth + 1).padStart(2, "0"); // +1 karena getMonth() mulai dari 0
+      const day = String(selectedDate).padStart(2, "0");
+      const dateString = `${year}-${month}-${day}`;
 
-      // Get current doctor document
+      console.log("=== ADDING SCHEDULE DEBUG ===");
+      console.log("Current Year:", year);
+      console.log("Current Month (0-based):", currentMonth);
+      console.log("Current Month (1-based):", currentMonth + 1);
+      console.log("Selected Date:", selectedDate);
+      console.log("Final Date String:", dateString);
+      console.log("Time:", newTime);
+
       const doctorDocRef = doc(db, "users", auth.currentUser?.uid);
       const doctorDoc = await getDoc(doctorDocRef);
 
       if (doctorDoc.exists()) {
         const currentData = doctorDoc.data();
         const currentSchedules = currentData.dailySchedules || {};
+
+        console.log("Current schedules before adding:", currentSchedules);
 
         // Add new time slot to the specific date
         if (!currentSchedules[dateString]) {
@@ -274,6 +374,8 @@ export default function DoctorDashboard() {
           // Sort time slots for the day
           currentSchedules[dateString].sort();
 
+          console.log("New schedules after adding:", currentSchedules);
+
           // Update the document
           await updateDoc(doctorDocRef, {
             dailySchedules: currentSchedules,
@@ -282,19 +384,38 @@ export default function DoctorDashboard() {
 
           await fetchDoctorData(auth.currentUser?.uid);
           setNewTime("");
-          console.log("Time slot added successfully!");
+          alert(
+            `✅ Schedule added successfully for ${dateString} at ${newTime}`
+          );
         } else {
-          console.log("Time slot already exists for this date");
+          alert("Time slot already exists for this date");
         }
       }
     } catch (error) {
       console.error("Error adding time slot:", error);
+      alert("Failed to add time slot: " + error.message);
     }
   };
 
+  // Perbaiki function handleDeleteTimeSlot
   const handleDeleteTimeSlot = async (scheduleId) => {
     try {
-      const [dateString, timeSlot] = scheduleId.split("-");
+      console.log("Deleting schedule ID:", scheduleId);
+
+      // scheduleId format: "YYYY-MM-DD-HH:MM"
+      // Tapi karena waktu bisa punya format seperti "14:30", kita perlu hati-hati dengan split
+      const lastDashIndex = scheduleId.lastIndexOf("-");
+
+      if (lastDashIndex === -1) {
+        console.error("Invalid schedule ID format:", scheduleId);
+        return;
+      }
+
+      // Split menjadi dateString dan timeSlot
+      const dateString = scheduleId.substring(0, lastDashIndex);
+      const timeSlot = scheduleId.substring(lastDashIndex + 1);
+
+      console.log("Parsed - Date:", dateString, "Time:", timeSlot);
 
       const doctorDocRef = doc(db, "users", auth.currentUser?.uid);
       const doctorDoc = await getDoc(doctorDocRef);
@@ -303,11 +424,38 @@ export default function DoctorDashboard() {
         const currentData = doctorDoc.data();
         const currentSchedules = currentData.dailySchedules || {};
 
+        console.log(
+          "Current schedules for date:",
+          currentSchedules[dateString]
+        );
+        console.log("Looking for time slot:", timeSlot);
+        console.log("Available time slots:", currentSchedules[dateString]);
+
         if (currentSchedules[dateString]) {
           // Remove the specific time slot
+          const originalLength = currentSchedules[dateString].length;
           currentSchedules[dateString] = currentSchedules[dateString].filter(
             (time) => time !== timeSlot
           );
+
+          console.log(
+            "Original length:",
+            originalLength,
+            "New length:",
+            currentSchedules[dateString].length
+          );
+          console.log("After removal:", currentSchedules[dateString]);
+
+          if (originalLength === currentSchedules[dateString].length) {
+            console.error(
+              "Time slot not found! Expected:",
+              timeSlot,
+              "Available:",
+              currentSchedules[dateString]
+            );
+            alert("Time slot not found. Please refresh and try again.");
+            return;
+          }
 
           // If no time slots left for this date, remove the date entry
           if (currentSchedules[dateString].length === 0) {
@@ -321,13 +469,19 @@ export default function DoctorDashboard() {
           });
 
           await fetchDoctorData(auth.currentUser?.uid);
+          console.log("Time slot deleted successfully!");
+        } else {
+          console.log("No schedules found for this date");
+          alert(
+            "No schedules found for this date. Please refresh and try again."
+          );
         }
       }
     } catch (error) {
       console.error("Error deleting time slot:", error);
+      alert("Failed to delete time slot: " + error.message);
     }
   };
-
   // Appointment Management
   const handleAppointmentStatusChange = async (appointmentId, status) => {
     try {
@@ -543,7 +697,1139 @@ export default function DoctorDashboard() {
     }
   };
 
-  // View Components
+  const canStartChat = (chat) => {
+    if (!chat.appointmentId) return false;
+
+    const appointmentDate = chat.appointmentDate;
+    const appointmentTime = chat.appointmentTime;
+
+    if (!appointmentDate || !appointmentTime) return false;
+
+    const appointmentDateTime = new Date(
+      `${appointmentDate}T${appointmentTime}:00`
+    );
+    const now = new Date();
+
+    return now >= appointmentDateTime;
+  };
+
+  const isChatExpired = (chat) => {
+    if (!chat.appointmentId) return false;
+
+    const appointmentDate = chat.appointmentDate;
+    const appointmentTime = chat.appointmentTime;
+
+    if (!appointmentDate || !appointmentTime) return true;
+
+    const appointmentDateTime = new Date(
+      `${appointmentDate}T${appointmentTime}:00`
+    );
+
+    const expiryTime = new Date(appointmentDateTime.getTime() + 30 * 60 * 1000);
+    const now = new Date();
+
+    return now > expiryTime;
+  };
+
+  const getChatStatus = (chat) => {
+    if (!canStartChat(chat)) {
+      return "not_started";
+    } else if (isChatExpired(chat)) {
+      return "expired";
+    } else {
+      return "active";
+    }
+  };
+
+  const getTimeRemaining = (chat) => {
+    if (!chat.appointmentDate || !chat.appointmentTime) return null;
+
+    const appointmentDateTime = new Date(
+      `${chat.appointmentDate}T${chat.appointmentTime}:00`
+    );
+    const expiryTime = new Date(appointmentDateTime.getTime() + 30 * 60 * 1000);
+    const now = new Date();
+
+    if (now < appointmentDateTime) {
+      const timeDiff = appointmentDateTime - now;
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+      return `Starts in ${hours}h ${minutes}m`;
+    } else if (now < expiryTime) {
+      const timeDiff = expiryTime - now;
+      const minutes = Math.floor(timeDiff / (1000 * 60));
+      return `${minutes} minutes left`;
+    } else {
+      return "Session ended";
+    }
+  };
+
+  const getChatStatusDescription = (chat) => {
+    const status = getChatStatus(chat);
+    switch (status) {
+      case "not_started":
+        return "Chat will be available at appointment time";
+      case "active":
+        return "Chat is active - you can send messages";
+      case "expired":
+        return "Chat session has ended. You can view message history below.";
+      default:
+        return "";
+    }
+  };
+
+  // 4. TAMBAHKAN FUNCTION UNTUK FETCH CHATS
+  const fetchChats = async (uid) => {
+    try {
+      const appointmentsQuery = query(
+        collection(db, "appointments"),
+        where("doctorId", "==", uid)
+      );
+
+      const appointmentsSnapshot = await getDocs(appointmentsQuery);
+
+      const chats = await Promise.all(
+        appointmentsSnapshot.docs.map(async (appointmentDoc) => {
+          const appointmentData = appointmentDoc.data();
+
+          // Only show appointments that are confirmed or have existing chat history
+          if (appointmentData.status !== "confirmed") {
+            const chatQuery = query(
+              collection(db, "chats"),
+              where("appointmentId", "==", appointmentDoc.id),
+              limit(1)
+            );
+
+            const chatSnapshot = await getDocs(chatQuery);
+            if (chatSnapshot.empty) {
+              return null;
+            }
+          }
+
+          const chatQuery = query(
+            collection(db, "chats"),
+            where("appointmentId", "==", appointmentDoc.id),
+            limit(1)
+          );
+
+          const chatSnapshot = await getDocs(chatQuery);
+          let chatData = null;
+          let chatId = null;
+
+          if (!chatSnapshot.empty) {
+            chatData = chatSnapshot.docs[0].data();
+            chatId = chatSnapshot.docs[0].id;
+          } else {
+            if (appointmentData.status === "confirmed") {
+              const newChatRef = await addDoc(collection(db, "chats"), {
+                appointmentId: appointmentDoc.id,
+                patientId: appointmentData.patientId,
+                doctorId: uid,
+                status: "pending",
+                messages: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                appointmentDate: appointmentData.appointmentDate,
+                appointmentTime: appointmentData.appointmentTime,
+              });
+
+              chatId = newChatRef.id;
+              chatData = {
+                appointmentId: appointmentDoc.id,
+                patientId: appointmentData.patientId,
+                doctorId: uid,
+                status: "pending",
+                messages: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                appointmentDate: appointmentData.appointmentDate,
+                appointmentTime: appointmentData.appointmentTime,
+              };
+            } else {
+              return null;
+            }
+          }
+
+          // Fetch patient name
+          let patientName = "Patient";
+          if (appointmentData.patientId) {
+            const patientDocSnap = await getDoc(
+              doc(db, "users", appointmentData.patientId)
+            );
+            if (patientDocSnap.exists()) {
+              patientName =
+                patientDocSnap.data().name ||
+                appointmentData.patientName ||
+                patientName;
+            }
+          }
+
+          // Format appointment date
+          let formattedAppointmentDate = "N/A";
+          if (appointmentData.appointmentDate) {
+            const dateObj = new Date(appointmentData.appointmentDate);
+            formattedAppointmentDate = dateObj.toLocaleDateString("id-ID", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            });
+          }
+
+          return {
+            id: chatId,
+            ...chatData,
+            appointmentId: appointmentDoc.id,
+            appointmentDate: appointmentData.appointmentDate,
+            appointmentTime: appointmentData.appointmentTime,
+            patientName: appointmentData.patientName,
+            formattedAppointmentDate,
+            formattedAppointmentTime: appointmentData.appointmentTime,
+            complaint: appointmentData.complaint,
+            appointmentStatus: appointmentData.status,
+          };
+        })
+      );
+
+      const validChats = chats.filter((chat) => chat !== null);
+
+      validChats.sort((a, b) => {
+        const dateA = new Date(`${a.appointmentDate}T${a.appointmentTime}:00`);
+        const dateB = new Date(`${b.appointmentDate}T${b.appointmentTime}:00`);
+        return dateB - dateA;
+      });
+
+      return validChats;
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+      return [];
+    }
+  };
+
+  // 5. TAMBAHKAN CHAT FUNCTIONS
+  const handleSendMessage = async () => {
+    if ((!newMessage.trim() && !imageUpload) || !selectedChat) return;
+
+    const chatStatus = getChatStatus(selectedChat);
+    if (chatStatus !== "active") {
+      alert("Chat is not available at this time.");
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const chatRef = doc(db, "chats", selectedChat.id);
+      const newMessageObj = {
+        senderId: doctorData.uid,
+        senderName: doctorData.name || "Doctor",
+        content: newMessage,
+        type: imageUpload ? "image" : "text",
+        timestamp: Timestamp.now(),
+        createdAt: new Date(),
+      };
+
+      if (imageUpload) {
+        try {
+          const reader = new FileReader();
+          const base64Promise = new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(imageUpload);
+          });
+          const base64Image = await base64Promise;
+          newMessageObj.imageUrl = base64Image;
+        } catch (uploadError) {
+          console.error("Error processing image:", uploadError);
+          alert("Failed to process image. Sending text message only.");
+          newMessageObj.type = "text";
+        }
+      }
+
+      const updateData = {
+        messages: arrayUnion(newMessageObj),
+        updatedAt: serverTimestamp(),
+      };
+
+      if (selectedChat.status === "pending") {
+        updateData.status = "active";
+      }
+
+      await updateDoc(chatRef, updateData);
+
+      setNewMessage("");
+      setImageUpload(null);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert("Failed to send message: " + error.message);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.match("image.*")) {
+        alert("File must be an image");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Image size too large (max 2MB)");
+        return;
+      }
+      setImageUpload(file);
+      setNewMessage("");
+    }
+  };
+
+  const triggerChatFileInput = () => {
+    chatFileInputRef.current.click();
+  };
+
+  const getStatusBadge = (chat) => {
+    const status = getChatStatus(chat);
+    switch (status) {
+      case "not_started":
+        return (
+          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+            Scheduled
+          </span>
+        );
+      case "active":
+        return (
+          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+            Active
+          </span>
+        );
+      case "expired":
+        return (
+          <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
+            Completed
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // 6. TAMBAHKAN USEEFFECT UNTUK CHAT
+  useEffect(() => {
+    if (!doctorData?.uid) return;
+
+    const loadChats = async () => {
+      const chatsData = await fetchChats(doctorData.uid);
+      setActiveChats(chatsData);
+      if (chatsData.length > 0 && !selectedChat) {
+        setSelectedChat(chatsData[0]);
+      }
+    };
+
+    loadChats();
+
+    const interval = setInterval(loadChats, 60000);
+    return () => clearInterval(interval);
+  }, [doctorData?.uid]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    const unsubscribe = onSnapshot(
+      doc(db, "chats", selectedChat.id),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setMessages(data.messages || []);
+        }
+      },
+      (err) => {
+        console.error("Error listening to chat updates:", err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [selectedChat]);
+
+  const fetchChatsForDoctor = async (doctorId) => {
+    try {
+      // Implementasi sesuai dengan backend Anda
+      // Contoh menggunakan Firebase Firestore:
+      const chatsRef = collection(db, "chats");
+      const q = query(chatsRef, where("doctorId", "==", doctorId));
+      const querySnapshot = await getDocs(q);
+
+      const chats = [];
+      querySnapshot.forEach((doc) => {
+        chats.push({
+          id: doc.id,
+          ...doc.data(),
+          formattedAppointmentDate: doc.data().appointmentDate
+            ? new Date(doc.data().appointmentDate).toLocaleDateString()
+            : "N/A",
+          formattedAppointmentTime: doc.data().appointmentTime || "N/A",
+          complaint: doc.data().complaint,
+        });
+      });
+
+      return chats;
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+      throw error;
+    }
+  };
+
+  const ChatsView = () => {
+  const [activeChats, setActiveChats] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [imageUpload, setImageUpload] = useState(null);
+  const [loadingChats, setLoadingChats] = useState(true);
+  const [error, setError] = useState(null);
+  const [chatExpiryTimer, setChatExpiryTimer] = useState(null);
+  const chatFileInputRef = useRef(null);
+
+  // Helper functions - sama seperti sebelumnya
+  const canStartChat = (chat) => {
+    if (!chat.appointmentId) return false;
+    const appointmentDate = chat.appointmentDate;
+    const appointmentTime = chat.appointmentTime;
+    if (!appointmentDate || !appointmentTime) return false;
+    const appointmentDateTime = new Date(
+      `${appointmentDate}T${appointmentTime}:00`
+    );
+    const now = new Date();
+    return now >= appointmentDateTime;
+  };
+
+  const isChatExpired = (chat) => {
+    if (!chat.appointmentId) return false;
+    const appointmentDate = chat.appointmentDate;
+    const appointmentTime = chat.appointmentTime;
+    if (!appointmentDate || !appointmentTime) return true;
+    const appointmentDateTime = new Date(
+      `${appointmentDate}T${appointmentTime}:00`
+    );
+    const expiryTime = new Date(appointmentDateTime.getTime() + 30 * 60 * 1000);
+    const now = new Date();
+    return now > expiryTime;
+  };
+
+  const getChatStatus = (chat) => {
+    if (!canStartChat(chat)) {
+      return "not_started";
+    } else if (isChatExpired(chat)) {
+      return "expired";
+    } else {
+      return "active";
+    }
+  };
+
+  const getTimeRemaining = (chat) => {
+    if (!chat.appointmentDate || !chat.appointmentTime) return null;
+    const appointmentDateTime = new Date(
+      `${chat.appointmentDate}T${chat.appointmentTime}:00`
+    );
+    const expiryTime = new Date(appointmentDateTime.getTime() + 30 * 60 * 1000);
+    const now = new Date();
+
+    if (now < appointmentDateTime) {
+      const timeDiff = appointmentDateTime - now;
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+      return `Starts in ${hours}h ${minutes}m`;
+    } else if (now < expiryTime) {
+      const timeDiff = expiryTime - now;
+      const minutes = Math.floor(timeDiff / (1000 * 60));
+      return `${minutes} minutes left`;
+    } else {
+      return "Session ended";
+    }
+  };
+
+  const getChatStatusDescription = (chat) => {
+    const status = getChatStatus(chat);
+    switch (status) {
+      case "not_started":
+        return "Chat will be available at appointment time";
+      case "active":
+        return "Chat is active - you can send messages";
+      case "expired":
+        return "Chat session has ended. You can view message history below.";
+      default:
+        return "";
+    }
+  };
+
+  const formatTime = (timeString) => {
+    if (!timeString) return "N/A";
+    const [hours, minutes] = timeString.split(":");
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const getStatusBadge = (chat) => {
+    const status = getChatStatus(chat);
+    switch (status) {
+      case "not_started":
+        return (
+          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+            Scheduled
+          </span>
+        );
+      case "active":
+        return (
+          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+            Active
+          </span>
+        );
+      case "expired":
+        return (
+          <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
+            Completed
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // INI DIA FUNCTION YANG WORKING! 🔥
+  const fetchChatsForDoctor = async (doctorId) => {
+    try {
+      console.log("🔥 Fetching chats for doctor:", doctorId);
+
+      // Query appointments - SAMA seperti patient tapi ganti doctorId
+      const appointmentsQuery = query(
+        collection(db, "appointments"),
+        where("doctorId", "==", doctorId)
+      );
+
+      const appointmentsSnapshot = await getDocs(appointmentsQuery);
+      console.log("📋 Found appointments:", appointmentsSnapshot.docs.length);
+
+      const chats = await Promise.all(
+        appointmentsSnapshot.docs.map(async (appointmentDoc) => {
+          const appointmentData = appointmentDoc.data();
+          console.log(
+            "📝 Processing appointment:",
+            appointmentDoc.id,
+            appointmentData
+          );
+
+          // Hanya tampilkan confirmed appointments atau yang sudah ada chat
+          if (appointmentData.status !== "confirmed") {
+            const chatQuery = query(
+              collection(db, "chats"),
+              where("appointmentId", "==", appointmentDoc.id),
+              limit(1)
+            );
+            const chatSnapshot = await getDocs(chatQuery);
+            if (chatSnapshot.empty) {
+              console.log(
+                "⏭️ Skipping non-confirmed appointment:",
+                appointmentDoc.id
+              );
+              return null;
+            }
+          }
+
+          // Check atau buat chat document
+          const chatQuery = query(
+            collection(db, "chats"),
+            where("appointmentId", "==", appointmentDoc.id),
+            limit(1)
+          );
+
+          const chatSnapshot = await getDocs(chatQuery);
+          let chatData = null;
+          let chatId = null;
+
+          if (!chatSnapshot.empty) {
+            chatData = chatSnapshot.docs[0].data();
+            chatId = chatSnapshot.docs[0].id;
+            console.log("💬 Found existing chat:", chatId);
+          } else {
+            // Buat chat baru jika appointment confirmed
+            if (appointmentData.status === "confirmed") {
+              console.log(
+                "➕ Creating new chat for appointment:",
+                appointmentDoc.id
+              );
+              const newChatRef = await addDoc(collection(db, "chats"), {
+                appointmentId: appointmentDoc.id,
+                patientId: appointmentData.patientId,
+                doctorId: appointmentData.doctorId,
+                status: "pending",
+                messages: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                appointmentDate: appointmentData.appointmentDate,
+                appointmentTime: appointmentData.appointmentTime,
+              });
+
+              chatId = newChatRef.id;
+              chatData = {
+                appointmentId: appointmentDoc.id,
+                patientId: appointmentData.patientId,
+                doctorId: appointmentData.doctorId,
+                status: "pending",
+                messages: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                appointmentDate: appointmentData.appointmentDate,
+                appointmentTime: appointmentData.appointmentTime,
+              };
+            } else {
+              console.log(
+                "⏭️ Skipping non-confirmed appointment:",
+                appointmentDoc.id
+              );
+              return null;
+            }
+          }
+
+          // Format appointment date
+          let formattedAppointmentDate = "N/A";
+          if (appointmentData.appointmentDate) {
+            const dateObj = new Date(appointmentData.appointmentDate);
+            formattedAppointmentDate = dateObj.toLocaleDateString("id-ID", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            });
+          }
+
+          const result = {
+            id: chatId,
+            ...chatData,
+            appointmentId: appointmentDoc.id,
+            appointmentDate: appointmentData.appointmentDate,
+            appointmentTime: appointmentData.appointmentTime,
+            patientName: appointmentData.patientName || "Unknown Patient",
+            patientEmail: appointmentData.patientEmail,
+            patientPhone: appointmentData.patientPhone,
+            formattedAppointmentDate,
+            formattedAppointmentTime: appointmentData.appointmentTime,
+            complaint: appointmentData.complaint,
+            appointmentStatus: appointmentData.status,
+            paymentStatus: appointmentData.paymentStatus,
+            priceDisplay: appointmentData.priceDisplay,
+            paymentMethod: appointmentData.paymentMethod,
+          };
+
+          console.log("✅ Created chat object for:", result.patientName);
+          return result;
+        })
+      );
+
+      // Filter dan sort
+      const validChats = chats.filter((chat) => chat !== null);
+      console.log("🎯 Valid chats:", validChats.length);
+
+      validChats.sort((a, b) => {
+        const dateA = new Date(`${a.appointmentDate}T${a.appointmentTime}:00`);
+        const dateB = new Date(`${b.appointmentDate}T${b.appointmentTime}:00`);
+        return dateB - dateA;
+      });
+
+      console.log("🎉 Fetch completed successfully!");
+      return validChats;
+    } catch (error) {
+      console.error("❌ Error fetching chats:", error);
+      throw error;
+    }
+  };
+
+  const setupChatExpiryTimer = useCallback((chat) => {
+    if (!chat?.appointmentDate || !chat?.appointmentTime) return;
+
+    const appointmentDateTime = new Date(
+      `${chat.appointmentDate}T${chat.appointmentTime}:00`
+    );
+    const expiryTime = new Date(appointmentDateTime.getTime() + 30 * 60 * 1000);
+    const now = new Date();
+
+    // Set timer jika chat belum expired
+    if (now < expiryTime) {
+      const timeUntilExpiry = expiryTime - now;
+      console.log(`⏰ Setting expiry timer for ${timeUntilExpiry}ms`);
+
+      const timerId = setTimeout(() => {
+        console.log("⏰ Chat expired! Forcing UI update");
+        // Force re-render dengan timestamp baru untuk trigger update
+        setSelectedChat((prevChat) =>
+          prevChat ? { ...prevChat, _lastUpdate: Date.now() } : prevChat
+        );
+      }, timeUntilExpiry);
+
+      setChatExpiryTimer(timerId);
+      return timerId;
+    }
+    return null;
+  }, []);
+
+  // ✅ FETCH FUNCTION YANG STABLE
+  const fetchChats = useCallback(async () => {
+    if (!doctorData?.uid) return;
+
+    setLoadingChats(true);
+    setError(null);
+    try {
+      const chatsData = await fetchChatsForDoctor(doctorData.uid);
+      setActiveChats(chatsData);
+
+      // Auto-select first chat if none selected
+      if (chatsData.length > 0 && !selectedChat) {
+        setSelectedChat(chatsData[0]);
+      }
+    } catch (err) {
+      console.error("Error fetching chats:", err);
+      setError("Failed to load chats. Please try again.");
+    } finally {
+      setLoadingChats(false);
+    }
+  }, [doctorData?.uid]); // ❌ HAPUS selectedChat dari dependency!
+  // Initial fetch
+  useEffect(() => {
+    fetchChats();
+  }, [fetchChats]);
+
+  // ✅ SETUP TIMER SAAT selectedChat BERUBAH
+  useEffect(() => {
+    // Clear existing timer first
+    if (chatExpiryTimer) {
+      clearTimeout(chatExpiryTimer);
+      setChatExpiryTimer(null);
+    }
+
+    if (selectedChat) {
+      const timerId = setupChatExpiryTimer(selectedChat);
+      if (timerId) {
+        setChatExpiryTimer(timerId);
+      }
+    }
+
+    return () => {
+      if (chatExpiryTimer) {
+        clearTimeout(chatExpiryTimer);
+      }
+    };
+  }, [selectedChat?.id]); // ✅ Hanya depend pada selectedChat.id
+
+  // Listen to selected chat messages - gunakan useCallback untuk stability
+  useEffect(() => {
+    if (!selectedChat?.id) {
+      setMessages([]);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(db, "chats", selectedChat.id),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setMessages(data.messages || []);
+        }
+      },
+      (err) => {
+        console.error("Error listening to chat updates:", err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [selectedChat?.id]); // Hanya depend pada selectedChat.id, bukan selectedChat object
+
+  // Handle send message - gunakan useCallback
+  const handleSendMessage = useCallback(async () => {
+    if ((!newMessage.trim() && !imageUpload) || !selectedChat) return;
+
+    const chatStatus = getChatStatus(selectedChat);
+    if (chatStatus !== "active") {
+      alert("Chat is not available at this time.");
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const chatRef = doc(db, "chats", selectedChat.id);
+      const newMessageObj = {
+        senderId: doctorData.uid,
+        senderName: doctorData.name || "Doctor",
+        content: newMessage,
+        type: imageUpload ? "image" : "text",
+        timestamp: Timestamp.now(),
+        createdAt: new Date(),
+      };
+
+      if (imageUpload) {
+        try {
+          const reader = new FileReader();
+          const base64Promise = new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(imageUpload);
+          });
+          const base64Image = await base64Promise;
+          newMessageObj.imageUrl = base64Image;
+        } catch (uploadError) {
+          console.error("Error processing image:", uploadError);
+          alert("Failed to process image. Sending text message only.");
+          newMessageObj.type = "text";
+        }
+      }
+
+      const updateData = {
+        messages: arrayUnion(newMessageObj),
+        updatedAt: serverTimestamp(),
+      };
+
+      if (selectedChat.status === "pending") {
+        updateData.status = "active";
+      }
+
+      await updateDoc(chatRef, updateData);
+
+      // Clear input setelah berhasil kirim
+      setNewMessage("");
+      setImageUpload(null);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert("Failed to send message: " + error.message);
+    } finally {
+      setIsSending(false);
+    }
+  }, [newMessage, imageUpload, selectedChat, doctorData]);
+  // Handle image upload
+  const handleImageUpload = useCallback((e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.match("image.*")) {
+        alert("File must be an image");
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        alert("Image size too large (max 2MB)");
+        return;
+      }
+      setImageUpload(file);
+      setNewMessage("");
+    }
+  }, []);
+
+  const triggerChatFileInput = useCallback(() => {
+    chatFileInputRef.current?.click();
+  }, []);
+
+  // Handle chat selection - gunakan useCallback
+  const handleChatSelect = useCallback((chat) => {
+    setSelectedChat(chat);
+  }, []);
+
+  // Handle key press - gunakan useCallback
+  const handleKeyPress = useCallback(
+    (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    },
+    [handleSendMessage]
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <ChatCircleDots size={24} /> Patient Consultations
+        </h1>
+        <button
+          onClick={fetchChats}
+          className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loadingChats ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <p className="ml-4 text-gray-600">Loading your consultations...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg">{error}</div>
+      ) : (
+        <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-200px)]">
+          {/* Chat list sidebar */}
+          <div className="w-full md:w-1/3 bg-white rounded-xl shadow border border-gray-100 p-4 overflow-y-auto">
+            <h2 className="font-semibold mb-4">Active Consultations</h2>
+            {activeChats.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">No consultations found</p>
+                <p className="text-gray-400 text-sm">
+                  Consultations will appear here when patients book appointments
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {activeChats.map((chat) => {
+                  const status = getChatStatus(chat);
+                  const hasMessages = chat.messages && chat.messages.length > 0;
+
+                  return (
+                    <div
+                      key={`chat-${chat.id}`} // Pastikan key stabil
+                      onClick={() => handleChatSelect(chat)}
+                      className={`p-3 rounded-lg cursor-pointer border ${
+                        selectedChat?.id === chat.id
+                          ? "bg-blue-50 border-blue-200"
+                          : "hover:bg-gray-50 border-transparent"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h3 className="font-medium">{chat.patientName}</h3>
+                          <p className="text-xs text-gray-500">Patient</p>
+                        </div>
+                        {getStatusBadge(chat)}
+                      </div>
+
+                      <p className="text-sm text-gray-600 truncate mb-2">
+                        {chat.complaint || "General consultation"}
+                      </p>
+
+                      <div className="text-xs text-gray-400">
+                        <p>{chat.formattedAppointmentDate}</p>
+                        <p>at {formatTime(chat.formattedAppointmentTime)}</p>
+                        <p className="font-medium mt-1">
+                          {getTimeRemaining(chat)}
+                        </p>
+                      </div>
+
+                      {hasMessages && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <p className="text-sm text-gray-500 truncate">
+                            Last:{" "}
+                            {chat.messages[chat.messages.length - 1]?.content ||
+                              "Image"}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {status === "expired"
+                              ? "Chat history available"
+                              : ""}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Chat area */}
+          <div className="flex-1 flex flex-col bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+            {selectedChat ? (
+              <>
+                <div className="p-4 border-b border-gray-200">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="font-semibold">
+                        Consultation with {selectedChat.patientName}
+                      </h2>
+                      <p className="text-sm text-gray-500">
+                        {selectedChat.formattedAppointmentDate} at{" "}
+                        {formatTime(selectedChat.formattedAppointmentTime)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      {getStatusBadge(selectedChat)}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {getTimeRemaining(selectedChat)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedChat.complaint && (
+                    <div className="mt-3 p-2 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Patient Complaint:</span>{" "}
+                        {selectedChat.complaint}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="mt-3 p-2 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-700">
+                      {getChatStatusDescription(selectedChat)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex-1 p-4 overflow-y-auto">
+                  {getChatStatus(selectedChat) === "not_started" ? (
+                    <div className="h-full flex items-center justify-center text-center">
+                      <div>
+                        <div className="mb-4">
+                          <Clock size={48} className="mx-auto text-gray-400" />
+                        </div>
+                        <p className="text-gray-500 mb-2">
+                          Chat will be available at appointment time
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          {formatTime(selectedChat.formattedAppointmentTime)} on{" "}
+                          {selectedChat.formattedAppointmentDate}
+                        </p>
+                      </div>
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      {getChatStatus(selectedChat) === "expired"
+                        ? "No messages were exchanged during this consultation."
+                        : "No messages yet. Start the conversation!"}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.map((msg, index) => (
+                        <div
+                          key={`msg-${index}-${
+                            msg.timestamp?.seconds || index
+                          }`} // Key yang lebih stabil
+                          className={`flex ${
+                            msg.senderId === doctorData.uid
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
+                        >
+                          <div
+                            className={`max-w-xs md:max-w-md rounded-lg p-3 ${
+                              msg.senderId === doctorData.uid
+                                ? "bg-blue-100"
+                                : "bg-gray-100"
+                            }`}
+                          >
+                            <div className="mb-1">
+                              <span className="text-xs font-medium text-gray-600">
+                                {msg.senderId === doctorData.uid
+                                  ? "You"
+                                  : selectedChat.patientName}
+                              </span>
+                            </div>
+                            {msg.type === "image" && msg.imageUrl && (
+                              <div className="mb-2">
+                                <img
+                                  src={msg.imageUrl}
+                                  alt="Chat image"
+                                  className="max-w-full h-auto rounded"
+                                />
+                              </div>
+                            )}
+                            {msg.content && (
+                              <p className="text-sm">{msg.content}</p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">
+                              {msg.timestamp
+                                ?.toDate?.()
+                                ?.toLocaleTimeString?.() ||
+                                (msg.createdAt
+                                  ? new Date(msg.createdAt).toLocaleTimeString()
+                                  : "Just now")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {getChatStatus(selectedChat) === "active" && (
+                  <div className="p-4 border-t border-gray-200">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type your message..."
+                        className="flex-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                        onKeyPress={handleKeyPress}
+                        autoComplete="off"
+                      />
+                      <input
+                        type="file"
+                        ref={chatFileInputRef}
+                        onChange={handleImageUpload}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={triggerChatFileInput}
+                        className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        title="Upload image"
+                      >
+                        <Images size={24} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSendMessage}
+                        disabled={
+                          isSending || (!newMessage.trim() && !imageUpload)
+                        }
+                        className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                          isSending || (!newMessage.trim() && !imageUpload)
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
+                      >
+                        {isSending ? "Sending..." : "Send"}
+                      </button>
+                    </div>
+                    {imageUpload && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-sm">
+                          Image ready: {imageUpload.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setImageUpload(null)}
+                          className="text-red-500 text-sm hover:text-red-700"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {getChatStatus(selectedChat) === "expired" && (
+                  <div className="p-4 border-t border-gray-200 bg-gray-50">
+                    <div className="flex items-center justify-center gap-2">
+                      <Archive size={16} className="text-gray-500" />
+                      <p className="text-sm text-gray-600 text-center">
+                        This consultation has ended. Chat history is preserved
+                        for your records.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="h-full flex items-center justify-center text-gray-500">
+                {activeChats.length === 0
+                  ? "No consultations available."
+                  : "Select a consultation to view messages"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
   const ScheduleView = () => {
     const displayCurrentSchedules = () => {
       if (!doctorData?.dailySchedules) return [];
@@ -561,8 +1847,12 @@ export default function DoctorDashboard() {
       currentMonthSchedules.forEach(([dateString, timeSlots]) => {
         const date = new Date(dateString);
         timeSlots.forEach((timeSlot) => {
+          // Pastikan ID dibuat dengan format yang konsisten
+          const scheduleId = `${dateString}-${timeSlot}`;
+          console.log("Creating schedule with ID:", scheduleId); // Debug log
+
           schedules.push({
-            id: `${dateString}-${timeSlot}`,
+            id: scheduleId,
             date: date,
             time: timeSlot,
             dateString: dateString,
@@ -581,7 +1871,7 @@ export default function DoctorDashboard() {
           </h1>
           <button
             onClick={() => fetchDoctorData(doctorData.uid)}
-            className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+            className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
           >
             Refresh
           </button>
@@ -663,7 +1953,7 @@ export default function DoctorDashboard() {
           })()}
         </div>
 
-        {/* BAGIAN UNTUK MENAMBAH SCHEDULE BARU - INI YANG HILANG! */}
+        {/* BAGIAN UNTUK MENAMBAH SCHEDULE BARU */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
           <h2 className="text-xl font-semibold mb-6">Add New Schedule</h2>
 
@@ -755,7 +2045,7 @@ export default function DoctorDashboard() {
         </h1>
         <button
           onClick={() => fetchAllData(doctorData.uid)}
-          className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+          className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
         >
           Refresh
         </button>
@@ -763,7 +2053,11 @@ export default function DoctorDashboard() {
 
       {appointments.length === 0 ? (
         <div className="bg-white p-8 rounded-xl shadow text-center border border-gray-100">
-          <p className="text-gray-500">No appointments found</p>
+          <UsersThree size={48} className="mx-auto text-gray-300 mb-4" />
+          <p className="text-gray-500 text-lg">No appointments found</p>
+          <p className="text-gray-400 text-sm mt-2">
+            Appointments will appear here when patients book with you
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -775,31 +2069,32 @@ export default function DoctorDashboard() {
                 setSelectedItem({ type: "appointment", data: appointment })
               }
             >
-              <div className="flex justify-between items-start">
+              <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-bold text-lg">
+                  <h3 className="font-bold text-lg text-gray-800">
                     {appointment.patientName}
                   </h3>
                   <p className="text-gray-600 text-sm">
-                    Age: {appointment.patientAge || "N/A"}
+                    Age: {appointment.patientAge} years old
                   </p>
                 </div>
                 <span
-                  className={`px-2 py-1 rounded-full text-xs ${
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
                     appointment.status === "confirmed"
                       ? "bg-blue-100 text-blue-800"
                       : appointment.status === "completed"
                       ? "bg-green-100 text-green-800"
                       : appointment.status === "cancelled"
                       ? "bg-red-100 text-red-800"
-                      : "bg-gray-100 text-gray-800"
+                      : "bg-yellow-100 text-yellow-800"
                   }`}
                 >
-                  {appointment.status}
+                  {appointment.status.charAt(0).toUpperCase() +
+                    appointment.status.slice(1)}
                 </span>
               </div>
 
-              <div className="mt-4 space-y-2 text-sm">
+              <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-2 text-gray-600">
                   <Calendar size={16} />
                   <span>{formatDate(appointment.date)}</span>
@@ -808,44 +2103,42 @@ export default function DoctorDashboard() {
                   <Clock size={16} />
                   <span>{formatTime(appointment.time)}</span>
                 </div>
-                <div className="pt-2">
-                  <p className="font-medium text-gray-700">Complaint:</p>
-                  <p className="text-gray-600">
-                    {appointment.complaint || "Not specified"}
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="font-medium text-gray-700 mb-1">Complaint:</p>
+                  <p className="text-gray-600 text-sm leading-relaxed">
+                    {appointment.complaint || "No specific complaint mentioned"}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-gray-100">
-                {appointment.status === "confirmed" && (
-                  <div className="flex justify-between">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAppointmentStatusChange(
-                          appointment.id,
-                          "completed"
-                        );
-                      }}
-                      className="px-3 py-1 text-xs text-green-600 hover:text-green-800 bg-green-50 rounded-lg transition-colors"
-                    >
-                      Mark Completed
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAppointmentStatusChange(
-                          appointment.id,
-                          "cancelled"
-                        );
-                      }}
-                      className="px-3 py-1 text-xs text-red-600 hover:text-red-800 bg-red-50 rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
+              {appointment.status === "confirmed" && (
+                <div className="mt-4 pt-3 border-t border-gray-100 flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAppointmentStatusChange(
+                        appointment.id,
+                        "completed"
+                      );
+                    }}
+                    className="flex-1 px-3 py-2 text-xs text-green-700 hover:text-green-800 bg-green-50 hover:bg-green-100 rounded-lg transition-colors font-medium"
+                  >
+                    Mark Completed
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAppointmentStatusChange(
+                        appointment.id,
+                        "cancelled"
+                      );
+                    }}
+                    className="flex-1 px-3 py-2 text-xs text-red-700 hover:text-red-800 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -858,6 +2151,16 @@ export default function DoctorDashboard() {
       total: payments.reduce((sum, p) => sum + (p.amount || 0), 0),
       completed: payments.filter((p) => p.status === "completed").length,
       pending: payments.filter((p) => p.status === "pending").length,
+      thisMonth: payments
+        .filter((p) => {
+          const paymentDate = p.paymentDate || p.createdAt;
+          const currentDate = new Date();
+          return (
+            paymentDate.getMonth() === currentDate.getMonth() &&
+            paymentDate.getFullYear() === currentDate.getFullYear()
+          );
+        })
+        .reduce((sum, p) => sum + (p.amount || 0), 0),
     };
 
     return (
@@ -868,36 +2171,92 @@ export default function DoctorDashboard() {
           </h1>
           <button
             onClick={() => fetchAllData(doctorData.uid)}
-            className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+            className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
           >
             Refresh
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-4 rounded-xl shadow border border-gray-100">
-            <p className="text-gray-500 text-sm">Total Earnings</p>
-            <p className="text-2xl font-bold">{formatCurrency(stats.total)}</p>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">
+                  Total Earnings
+                </p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(stats.total)}
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <CurrencyDollar size={24} className="text-green-600" />
+              </div>
+            </div>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow border border-gray-100">
-            <p className="text-gray-500 text-sm">Completed Payments</p>
-            <p className="text-2xl font-bold">{stats.completed}</p>
+
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">This Month</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {formatCurrency(stats.thisMonth)}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <Calendar size={24} className="text-blue-600" />
+              </div>
+            </div>
           </div>
-          <div className="bg-white p-4 rounded-xl shadow border border-gray-100">
-            <p className="text-gray-500 text-sm">Pending Payments</p>
-            <p className="text-2xl font-bold">{stats.pending}</p>
+
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">Completed</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {stats.completed}
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <Receipt size={24} className="text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {stats.pending}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <Clock size={24} className="text-yellow-600" />
+              </div>
+            </div>
           </div>
         </div>
 
         {payments.length === 0 ? (
           <div className="bg-white p-8 rounded-xl shadow text-center border border-gray-100">
-            <p className="text-gray-500">No payment records found</p>
+            <Receipt size={48} className="mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-500 text-lg">No payment records found</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Payment records will appear here when patients pay for
+              appointments
+            </p>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-100">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Recent Payments
+              </h2>
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-blue-50">
+                <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Date
@@ -909,7 +2268,13 @@ export default function DoctorDashboard() {
                       Amount
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Method
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Description
                     </th>
                   </tr>
                 </thead>
@@ -917,34 +2282,59 @@ export default function DoctorDashboard() {
                   {payments.map((payment) => (
                     <tr
                       key={payment.id}
-                      className="hover:bg-blue-50 cursor-pointer"
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() =>
                         setSelectedItem({ type: "payment", data: payment })
                       }
                     >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(payment.date)}
+                        <div>
+                          <div className="font-medium">
+                            {formatDate(
+                              payment.paymentDate || payment.createdAt
+                            )}
+                          </div>
+                          {payment.paidAt && (
+                            <div className="text-xs text-gray-500">
+                              Paid: {formatDate(payment.paidAt)}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {payment.patientName || "N/A"}
+                          {payment.patientName || "Unknown Patient"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          ID: {payment.patientId?.slice(-8) || "N/A"}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                         {formatCurrency(payment.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900 capitalize">
+                          {payment.paymentMethod || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs ${
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
                             payment.status === "completed"
                               ? "bg-green-100 text-green-800"
                               : payment.status === "pending"
                               ? "bg-yellow-100 text-yellow-800"
+                              : payment.status === "failed"
+                              ? "bg-red-100 text-red-800"
                               : "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {payment.status}
+                          {payment.status?.charAt(0).toUpperCase() +
+                            payment.status?.slice(1) || "Unknown"}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                        {payment.description || "No description"}
                       </td>
                     </tr>
                   ))}
@@ -1472,7 +2862,7 @@ export default function DoctorDashboard() {
         </div>
 
         {/* Account Actions Section */}
-        <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+        {/* <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
           <h2 className="text-lg font-semibold mb-4">Account Actions</h2>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -1514,7 +2904,7 @@ export default function DoctorDashboard() {
               </button>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     );
   };
@@ -1621,7 +3011,7 @@ export default function DoctorDashboard() {
                     <div>
                       <p className="text-sm text-gray-500">Payment Method</p>
                       <p className="font-medium capitalize">
-                        {data.method || "Not specified"}
+                        {data.paymentMethod || "Not specified"}
                       </p>
                     </div>
                   </div>
@@ -1706,6 +3096,17 @@ export default function DoctorDashboard() {
               Patient Appointments
             </button>
             <button
+              onClick={() => setActiveView("chats")}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left ${
+                activeView === "chats"
+                  ? "bg-blue-100 text-blue-600"
+                  : "hover:bg-gray-100"
+              } transition-colors`}
+            >
+              <ChatCircleDots size={20} />
+              Patient Chats
+            </button>
+            <button
               onClick={() => setActiveView("payments")}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left ${
                 activeView === "payments"
@@ -1757,6 +3158,7 @@ export default function DoctorDashboard() {
           <>
             {activeView === "schedule" && <ScheduleView />}
             {activeView === "appointments" && <AppointmentsView />}
+            {activeView === "chats" && <ChatsView />}
             {activeView === "payments" && <PaymentsView />}
             {activeView === "account" && <AccountView />}
           </>

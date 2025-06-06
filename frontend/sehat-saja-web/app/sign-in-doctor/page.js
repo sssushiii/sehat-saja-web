@@ -109,9 +109,9 @@ export default function SignInDoctor() {
                                     </div>
 
                                     <div className="dont-have flex justify-center text-xs font-medium">
-                                        <span className="mr-1">Not a doctor?</span>
-                                        <Link href="/sign-in" className="font-semibold text-blue-500 hover:text-blue-700">
-                                            Sign In as User
+                                        <span className="mr-1">Don't Have Doctor Account Yet?</span>
+                                        <Link href="/sign-up-doctor" className="font-semibold text-blue-500 hover:text-blue-700">
+                                            Sign Up
                                         </Link>
                                     </div>
                                 </form>
