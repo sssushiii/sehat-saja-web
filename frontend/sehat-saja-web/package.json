@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@phosphor-icons/react": "^2.1.7",
+    "@phosphor-icons/react": "^2.1.10",
     "chart.js": "^4.4.9",
     "firebase": "^11.6.1",
     "leaflet": "^1.9.4",
