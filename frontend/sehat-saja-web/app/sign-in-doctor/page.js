@@ -109,7 +109,7 @@ export default function SignInDoctor() {
                                     </div>
 
                                     <div className="dont-have flex justify-center text-xs font-medium">
-                                        <span className="mr-1">Don't Have Doctor Account Yet?</span>
+                                        <span className="mr-1">Don`t Have Doctor Account Yet?</span>
                                         <Link href="/sign-up-doctor" className="font-semibold text-blue-500 hover:text-blue-700">
                                             Sign Up
                                         </Link>
