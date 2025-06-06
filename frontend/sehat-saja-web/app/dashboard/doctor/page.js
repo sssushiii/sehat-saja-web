@@ -17,7 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { auth, db, storage } from "../../../lib/firebase";
+import { auth, db} from "../../../lib/firebase";
 import {
   onAuthStateChanged,
   signOut,

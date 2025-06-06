@@ -206,7 +206,7 @@ export default function News() {
                 <div className="flex flex-wrap gap-2">
                   {searchTerm && (
                     <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                      Search: "{searchTerm}"
+                      Search: `{searchTerm}`
                     </span>
                   )}
                   {category !== "all" && (
