@@ -234,7 +234,7 @@ export default function ArticlePage({ params }) {
                       key={index}
                       className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded"
                     >
-                      #{label.toLowerCase().replace(' ', '')}
+                      #{label.toLowerCase().replace(``, ` `)}
                     </span>
                   ))}
                 </div>
@@ -345,7 +345,7 @@ const ArticlePageError = ({ error }) => {
             </h1>
             <p className="text-gray-600 mb-6">
               {error === "Article not found" 
-                ? "The article you're looking for doesn't exist or has been removed."
+                ? "The article you`re looking for doesn`t exist or has been removed."
                 : "There was an error loading this article. Please try again later."
               }
             </p>

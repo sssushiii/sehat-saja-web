@@ -546,7 +546,7 @@ export default function AppointmentPage() {
                   <div className="text-center py-8 text-gray-500">
                     <p>No available dates found for this doctor.</p>
                     <p className="text-sm mt-2">
-                      Doctor hasn't set up their schedule yet. Please contact the doctor directly or try again later.
+                      Doctor hasn`t set up their schedule yet. Please contact the doctor directly or try again later.
                     </p>
                   </div>
                 )}
@@ -753,7 +753,7 @@ const ConfirmationModal = ({
           </div>
           <h2 className="text-2xl font-bold mb-3">Appointment Confirmed!</h2>
           <p className="mb-5 text-gray-600">
-            Your appointment has been successfully booked and the time slot has been removed from the doctor's schedule.
+            Your appointment has been successfully booked and the time slot has been removed from the doctor`s schedule.
           </p>
 
           <div className="bg-blue-50 rounded-lg p-4 mb-6 text-left">
@@ -859,7 +859,7 @@ const AppointmentPageError = ({ error }) => {
               Doctor Not Found
             </h1>
             <p className="text-gray-600 mb-6">
-              {error || "The doctor you're looking for is not available."}
+              {error || "The doctor you`re looking for is not available."}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
