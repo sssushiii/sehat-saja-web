@@ -40,7 +40,6 @@ import {
   serverTimestamp,
   Timestamp,
   orderBy,
-  addDoc 
 } from "firebase/firestore";
 import {
   ref,
@@ -79,48 +78,60 @@ export default function PatientDashboard() {
     const [chatExpiryTimer, setChatExpiryTimer] = useState(null);
     const fileInputRef = useRef(null);
 
-    // State untuk rating system
-    const [showRatingModal, setShowRatingModal] = useState(false);
-    const [rating, setRating] = useState(0);
-    const [ratingComment, setRatingComment] = useState("");
-    const [isSubmittingRating, setIsSubmittingRating] = useState(false);
-    const [hasRated, setHasRated] = useState(false);
-
+    // Helper function untuk check apakah chat bisa dimulai (sesuai waktu appointment)
     const canStartChat = (chat) => {
       if (!chat.appointmentId) return false;
+
       const appointmentDate = chat.appointmentDate;
       const appointmentTime = chat.appointmentTime;
+
       if (!appointmentDate || !appointmentTime) return false;
+
       const appointmentDateTime = new Date(
         `${appointmentDate}T${appointmentTime}:00`
       );
       const now = new Date();
+
       return now >= appointmentDateTime;
     };
 
+    // Helper function untuk check apakah chat sudah expired (30 menit setelah appointment)
     const isChatExpired = (chat) => {
       if (!chat.appointmentId) return false;
+
       const appointmentDate = chat.appointmentDate;
       const appointmentTime = chat.appointmentTime;
+
       if (!appointmentDate || !appointmentTime) return true;
+
       const appointmentDateTime = new Date(
         `${appointmentDate}T${appointmentTime}:00`
       );
+
+      // Tambah 30 menit untuk expiry
       const expiryTime = new Date(
         appointmentDateTime.getTime() + 30 * 60 * 1000
       );
       const now = new Date();
+
       return now > expiryTime;
     };
 
+    // Helper function untuk mendapatkan status chat
     const getChatStatus = (chat) => {
-      if (!canStartChat(chat)) return "not_started";
-      if (isChatExpired(chat)) return "expired";
-      return "active";
+      if (!canStartChat(chat)) {
+        return "not_started";
+      } else if (isChatExpired(chat)) {
+        return "expired";
+      } else {
+        return "active";
+      }
     };
 
+    // Helper function untuk mendapatkan waktu tersisa
     const getTimeRemaining = (chat) => {
       if (!chat.appointmentDate || !chat.appointmentTime) return null;
+
       const appointmentDateTime = new Date(
         `${chat.appointmentDate}T${chat.appointmentTime}:00`
       );
@@ -133,90 +144,32 @@ export default function PatientDashboard() {
         const timeDiff = appointmentDateTime - now;
         const hours = Math.floor(timeDiff / (1000 * 60 * 60));
         const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-        return `Dimulai dalam ${hours}j ${minutes}m`;
+        return `Starts in ${hours}h ${minutes}m`;
       } else if (now < expiryTime) {
         const timeDiff = expiryTime - now;
         const minutes = Math.floor(timeDiff / (1000 * 60));
-        return `${minutes} menit tersisa`;
+        return `${minutes} minutes left`;
       } else {
-        return "Sesi telah berakhir";
+        return "Session ended";
       }
     };
 
+    // Enhanced function untuk mendapatkan status description
     const getChatStatusDescription = (chat) => {
       const status = getChatStatus(chat);
       switch (status) {
         case "not_started":
-          return "Chat akan tersedia pada waktu janji temu";
+          return "Chat will be available at appointment time";
         case "active":
-          return "Chat aktif - Anda dapat mengirim pesan";
+          return "Chat is active - you can send messages";
         case "expired":
-          return "Sesi chat telah berakhir. Anda dapat melihat riwayat pesan di bawah.";
+          return "Chat session has ended. You can view message history below.";
         default:
           return "";
       }
     };
 
-    const checkIfRated = useCallback(
-      async (chatId) => {
-        if (!user?.uid || !chatId) return false;
-
-        const ratingQuery = query(
-          collection(db, "ratings"),
-          where("chatId", "==", chatId),
-          where("patientId", "==", user.uid),
-          limit(1)
-        );
-
-        const snapshot = await getDocs(ratingQuery);
-        return !snapshot.empty;
-      },
-      [user?.uid]
-    );
-
-    const submitRating = async () => {
-      if (!selectedChat || rating === 0 || isSubmittingRating) return;
-
-      setIsSubmittingRating(true);
-      try {
-        await addDoc(collection(db, "ratings"), {
-          chatId: selectedChat.id,
-          appointmentId: selectedChat.appointmentId,
-          doctorId: selectedChat.doctorId,
-          patientId: user.uid,
-          rating,
-          comment: ratingComment,
-          createdAt: serverTimestamp(),
-        });
-
-        const doctorRef = doc(db, "users", selectedChat.doctorId);
-        const doctorSnap = await getDoc(doctorRef);
-
-        if (doctorSnap.exists()) {
-          const doctorData = doctorSnap.data();
-          const currentRatings = doctorData.ratings || [];
-          const newRatings = [...currentRatings, rating];
-          const avgRating =
-            newRatings.reduce((a, b) => a + b, 0) / newRatings.length;
-
-          await updateDoc(doctorRef, {
-            ratings: newRatings,
-            averageRating: avgRating,
-            ratingCount: newRatings.length,
-          });
-        }
-
-        setHasRated(true);
-        setShowRatingModal(false);
-        alert("Terima kasih atas penilaian Anda!");
-      } catch (error) {
-        console.error("Error submitting rating:", error);
-        alert("Gagal mengirim penilaian. Silakan coba lagi.");
-      } finally {
-        setIsSubmittingRating(false);
-      }
-    };
-
+    // ✅ TIMER UNTUK AUTO-DISABLE CHAT SAAT EXPIRED
     const setupChatExpiryTimer = useCallback((chat) => {
       if (!chat?.appointmentDate || !chat?.appointmentTime) return;
 
@@ -228,9 +181,14 @@ export default function PatientDashboard() {
       );
       const now = new Date();
 
+      // Set timer jika chat belum expired
       if (now < expiryTime) {
         const timeUntilExpiry = expiryTime - now;
+        console.log(`⏰ Setting expiry timer for ${timeUntilExpiry}ms`);
+
         const timerId = setTimeout(() => {
+          console.log("⏰ Chat expired! Forcing UI update");
+          // Force re-render dengan timestamp baru untuk trigger update
           setSelectedChat((prevChat) =>
             prevChat ? { ...prevChat, _lastUpdate: Date.now() } : prevChat
           );
@@ -242,37 +200,59 @@ export default function PatientDashboard() {
       return null;
     }, []);
 
+    // ✅ FETCH FUNCTION YANG STABLE
     const fetchChats = useCallback(async () => {
       if (!user) return;
 
       setLoadingChats(true);
       setError(null);
       try {
+        console.log("🔥 Fetching chats for patient:", user.uid);
+
+        // Fetch ALL appointments (not just confirmed ones) to show chat history
         const appointmentsQuery = query(
           collection(db, "appointments"),
           where("patientId", "==", user.uid)
         );
 
         const appointmentsSnapshot = await getDocs(appointmentsQuery);
+        console.log("📋 Found appointments:", appointmentsSnapshot.docs.length);
+
         const chats = await Promise.all(
           appointmentsSnapshot.docs.map(async (appointmentDoc) => {
             const appointmentData = appointmentDoc.data();
+            console.log(
+              "📝 Processing appointment:",
+              appointmentDoc.id,
+              appointmentData
+            );
 
+            // Only show appointments that are confirmed or have existing chat history
             if (appointmentData.status !== "confirmed") {
+              // Check if chat exists for this appointment
               const chatQuery = query(
                 collection(db, "chats"),
                 where("appointmentId", "==", appointmentDoc.id),
                 limit(1)
               );
+
               const chatSnapshot = await getDocs(chatQuery);
-              if (chatSnapshot.empty) return null;
+              if (chatSnapshot.empty) {
+                console.log(
+                  "⏭️ Skipping non-confirmed appointment:",
+                  appointmentDoc.id
+                );
+                return null; // Skip appointments without chat history
+              }
             }
 
+            // Rest of the existing code remains the same...
             const chatQuery = query(
               collection(db, "chats"),
               where("appointmentId", "==", appointmentDoc.id),
               limit(1)
             );
+
             const chatSnapshot = await getDocs(chatQuery);
             let chatData = null;
             let chatId = null;
@@ -280,35 +260,49 @@ export default function PatientDashboard() {
             if (!chatSnapshot.empty) {
               chatData = chatSnapshot.docs[0].data();
               chatId = chatSnapshot.docs[0].id;
-            } else if (appointmentData.status === "confirmed") {
-              const newChatRef = await addDoc(collection(db, "chats"), {
-                appointmentId: appointmentDoc.id,
-                patientId: user.uid,
-                doctorId: appointmentData.doctorId,
-                status: "pending",
-                messages: [],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                appointmentDate: appointmentData.appointmentDate,
-                appointmentTime: appointmentData.appointmentTime,
-              });
-              chatId = newChatRef.id;
-              chatData = {
-                appointmentId: appointmentDoc.id,
-                patientId: user.uid,
-                doctorId: appointmentData.doctorId,
-                status: "pending",
-                messages: [],
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                appointmentDate: appointmentData.appointmentDate,
-                appointmentTime: appointmentData.appointmentTime,
-              };
+              console.log("💬 Found existing chat:", chatId);
             } else {
-              return null;
+              // Only create new chat if appointment is confirmed
+              if (appointmentData.status === "confirmed") {
+                console.log(
+                  "➕ Creating new chat for appointment:",
+                  appointmentDoc.id
+                );
+                const newChatRef = await addDoc(collection(db, "chats"), {
+                  appointmentId: appointmentDoc.id,
+                  patientId: user.uid,
+                  doctorId: appointmentData.doctorId,
+                  status: "pending",
+                  messages: [],
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  appointmentDate: appointmentData.appointmentDate,
+                  appointmentTime: appointmentData.appointmentTime,
+                });
+
+                chatId = newChatRef.id;
+                chatData = {
+                  appointmentId: appointmentDoc.id,
+                  patientId: user.uid,
+                  doctorId: appointmentData.doctorId,
+                  status: "pending",
+                  messages: [],
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  appointmentDate: appointmentData.appointmentDate,
+                  appointmentTime: appointmentData.appointmentTime,
+                };
+              } else {
+                console.log(
+                  "⏭️ Skipping non-confirmed appointment:",
+                  appointmentDoc.id
+                );
+                return null;
+              }
             }
 
-            let doctorName = "Dokter";
+            // Fetch doctor name
+            let doctorName = "Doctor";
             if (appointmentData.doctorId) {
               const doctorDocSnap = await getDoc(
                 doc(db, "users", appointmentData.doctorId)
@@ -321,6 +315,7 @@ export default function PatientDashboard() {
               }
             }
 
+            // Format appointment date
             let formattedAppointmentDate = "N/A";
             if (appointmentData.appointmentDate) {
               const dateObj = new Date(appointmentData.appointmentDate);
@@ -332,7 +327,7 @@ export default function PatientDashboard() {
               });
             }
 
-            return {
+            const result = {
               id: chatId,
               ...chatData,
               appointmentId: appointmentDoc.id,
@@ -343,12 +338,18 @@ export default function PatientDashboard() {
               formattedAppointmentDate,
               formattedAppointmentTime: appointmentData.appointmentTime,
               complaint: appointmentData.complaint,
-              appointmentStatus: appointmentData.status,
+              appointmentStatus: appointmentData.status, // Add appointment status
             };
+
+            console.log("✅ Created chat object for:", result.doctorName);
+            return result;
           })
         );
 
+        // Filter out null values and sort
         const validChats = chats.filter((chat) => chat !== null);
+        console.log("🎯 Valid chats:", validChats.length);
+
         validChats.sort((a, b) => {
           const dateA = new Date(
             `${a.appointmentDate}T${a.appointmentTime}:00`
@@ -360,25 +361,30 @@ export default function PatientDashboard() {
         });
 
         setActiveChats(validChats);
+        // ✅ Auto-select HANYA jika belum ada yang selected
         if (validChats.length > 0 && !selectedChat) {
           setSelectedChat(validChats[0]);
         }
+
+        console.log("🎉 Fetch completed successfully!");
       } catch (err) {
-        console.error("Error fetching chats:", err);
-        setError("Gagal memuat chat. Silakan coba lagi.");
+        console.error("❌ Error fetching chats:", err);
+        setError("Failed to load chats. Please try again.");
       } finally {
         setLoadingChats(false);
       }
-    }, [user.uid]);
+    }, [user]); // ❌ HAPUS selectedChat dari dependency!
 
+    // ✅ INITIAL FETCH - TANPA auto reload interval
     useEffect(() => {
-      if (user?.uid) {
-        // Pastikan user.uid ada
+      if (user) {
         fetchChats();
       }
-    }, [user?.uid, fetchChats]); // Gunakan user.uid dan fetchChats sebagai dependency
+    }, [user]); // ✅ Hanya depend pada user
 
+    // ✅ SETUP TIMER SAAT selectedChat BERUBAH
     useEffect(() => {
+      // Clear existing timer first
       if (chatExpiryTimer) {
         clearTimeout(chatExpiryTimer);
         setChatExpiryTimer(null);
@@ -389,16 +395,6 @@ export default function PatientDashboard() {
         if (timerId) {
           setChatExpiryTimer(timerId);
         }
-
-        // Cek rating saat chat dipilih dan sudah expired
-        if (getChatStatus(selectedChat) === "expired") {
-          checkIfRated(selectedChat.id).then((rated) => {
-            setHasRated(rated);
-            if (!rated) {
-              setShowRatingModal(true);
-            }
-          });
-        }
       }
 
       return () => {
@@ -406,8 +402,9 @@ export default function PatientDashboard() {
           clearTimeout(chatExpiryTimer);
         }
       };
-    }, [selectedChat?.id, setupChatExpiryTimer, checkIfRated]);
+    }, [selectedChat?.id]); // ✅ Hanya depend pada selectedChat.id
 
+    // ✅ LISTEN TO MESSAGES
     useEffect(() => {
       if (!selectedChat) return;
 
@@ -417,9 +414,6 @@ export default function PatientDashboard() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setMessages(data.messages || []);
-
-            // Update chat terpilih jika perlu
-            setSelectedChat((prev) => (prev ? { ...prev, ...data } : null));
           }
         },
         (err) => {
@@ -428,19 +422,16 @@ export default function PatientDashboard() {
       );
 
       return () => unsubscribe();
-    }, [selectedChat?.id]); // Hanya depend pada selectedChat.id
+    }, [selectedChat]);
 
-    const handleSendMessage = async (e) => {
-      if (e) {
-        e.preventDefault(); // Tambahkan ini untuk mencegah behavior default form
-        e.stopPropagation(); // Hentikan bubbling event
-      }
-
+    // ✅ HANDLE SEND MESSAGE DENGAN REAL-TIME CHECK
+    const handleSendMessage = async () => {
       if ((!newMessage.trim() && !imageUpload) || !selectedChat) return;
 
+      // ✅ CHECK STATUS REAL-TIME SETIAP KALI MAU KIRIM
       const chatStatus = getChatStatus(selectedChat);
       if (chatStatus !== "active") {
-        alert("Chat tidak tersedia saat ini.");
+        alert("Chat is not available at this time.");
         return;
       }
 
@@ -449,7 +440,7 @@ export default function PatientDashboard() {
         const chatRef = doc(db, "chats", selectedChat.id);
         const newMessageObj = {
           senderId: user.uid,
-          senderName: user.displayName || user.name || "Pasien",
+          senderName: user.displayName || user.name || "Patient",
           content: newMessage,
           type: imageUpload ? "image" : "text",
           timestamp: Timestamp.now(),
@@ -468,7 +459,7 @@ export default function PatientDashboard() {
             newMessageObj.imageUrl = base64Image;
           } catch (uploadError) {
             console.error("Error processing image:", uploadError);
-            alert("Gagal memproses gambar. Hanya mengirim pesan teks.");
+            alert("Failed to process image. Sending text message only.");
             newMessageObj.type = "text";
           }
         }
@@ -483,11 +474,12 @@ export default function PatientDashboard() {
         }
 
         await updateDoc(chatRef, updateData);
+
         setNewMessage("");
         setImageUpload(null);
       } catch (error) {
         console.error("Error sending message:", error);
-        alert("Gagal mengirim pesan: " + error.message);
+        alert("Failed to send message: " + error.message);
       } finally {
         setIsSending(false);
       }
@@ -497,11 +489,11 @@ export default function PatientDashboard() {
       const file = e.target.files[0];
       if (file) {
         if (!file.type.match("image.*")) {
-          alert("File harus berupa gambar");
+          alert("File must be an image");
           return;
         }
         if (file.size > 2 * 1024 * 1024) {
-          alert("Ukuran gambar terlalu besar (maks 2MB)");
+          alert("Image size too large (max 2MB)");
           return;
         }
         setImageUpload(file);
@@ -528,19 +520,19 @@ export default function PatientDashboard() {
         case "not_started":
           return (
             <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
-              Dijadwalkan
+              Scheduled
             </span>
           );
         case "active":
           return (
             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-              Aktif
+              Active
             </span>
           );
         case "expired":
           return (
             <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">
-              Selesai
+              Completed
             </span>
           );
         default:
@@ -552,38 +544,36 @@ export default function PatientDashboard() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ChatCircleDots size={24} /> Konsultasi Chat
+            <ChatCircleDots size={24} /> Consultation Chats
           </h1>
           <button
             onClick={fetchChats}
             className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
           >
-            Segarkan
+            Refresh
           </button>
         </div>
 
         {loadingChats ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            <p className="ml-4 text-gray-600">Memuat konsultasi Anda...</p>
+            <p className="ml-4 text-gray-600">Loading your consultations...</p>
           </div>
         ) : error ? (
           <div className="bg-red-50 text-red-600 p-4 rounded-lg">{error}</div>
         ) : (
           <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-200px)]">
-            {/* Daftar chat sidebar */}
+            {/* Chat list sidebar */}
             <div className="w-full md:w-1/3 bg-white rounded-xl shadow border border-gray-100 p-4 overflow-y-auto">
-              <h2 className="font-semibold mb-4">Konsultasi Anda</h2>
+              <h2 className="font-semibold mb-4">Your Consultations</h2>
               {activeChats.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-500 mb-4">
-                    Tidak ada konsultasi ditemukan
-                  </p>
+                  <p className="text-gray-500 mb-4">No consultations found</p>
                   <Link
                     href="/appointment"
                     className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Buat Janji Temu
+                    Book an Appointment
                   </Link>
                 </div>
               ) : (
@@ -614,14 +604,12 @@ export default function PatientDashboard() {
                         </div>
 
                         <p className="text-sm text-gray-600 truncate mb-2">
-                          {chat.complaint || "Konsultasi umum"}
+                          {chat.complaint || "General consultation"}
                         </p>
 
                         <div className="text-xs text-gray-400">
                           <p>{chat.formattedAppointmentDate}</p>
-                          <p>
-                            pada {formatTime(chat.formattedAppointmentTime)}
-                          </p>
+                          <p>at {formatTime(chat.formattedAppointmentTime)}</p>
                           <p className="font-medium mt-1">
                             {getTimeRemaining(chat)}
                           </p>
@@ -630,13 +618,13 @@ export default function PatientDashboard() {
                         {hasMessages && (
                           <div className="mt-2 pt-2 border-t border-gray-100">
                             <p className="text-sm text-gray-500 truncate">
-                              Terakhir:{" "}
+                              Last:{" "}
                               {chat.messages[chat.messages.length - 1]
-                                ?.content || "Gambar"}
+                                ?.content || "Image"}
                             </p>
                             <p className="text-xs text-gray-400">
                               {status === "expired"
-                                ? "Riwayat chat tersedia"
+                                ? "Chat history available"
                                 : ""}
                             </p>
                           </div>
@@ -648,7 +636,7 @@ export default function PatientDashboard() {
               )}
             </div>
 
-            {/* Area chat */}
+            {/* Chat area */}
             <div className="flex-1 flex flex-col bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
               {selectedChat ? (
                 <>
@@ -656,13 +644,13 @@ export default function PatientDashboard() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h2 className="font-semibold">
-                          Konsultasi dengan {selectedChat.doctorName}
+                          Consultation with {selectedChat.doctorName}
                         </h2>
                         <p className="text-sm text-gray-500">
                           {selectedChat.doctorSpecialization}
                         </p>
                         <p className="text-sm text-gray-500">
-                          {selectedChat.formattedAppointmentDate} pada{" "}
+                          {selectedChat.formattedAppointmentDate} at{" "}
                           {formatTime(selectedChat.formattedAppointmentTime)}
                         </p>
                       </div>
@@ -677,13 +665,13 @@ export default function PatientDashboard() {
                     {selectedChat.complaint && (
                       <div className="mt-3 p-2 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">
-                          <span className="font-medium">Keluhan:</span>{" "}
+                          <span className="font-medium">Complaint:</span>{" "}
                           {selectedChat.complaint}
                         </p>
                       </div>
                     )}
 
-                    {/* Informasi status */}
+                    {/* Status information */}
                     <div className="mt-3 p-2 bg-blue-50 rounded-lg">
                       <p className="text-sm text-blue-700">
                         {getChatStatusDescription(selectedChat)}
@@ -702,19 +690,19 @@ export default function PatientDashboard() {
                             />
                           </div>
                           <p className="text-gray-500 mb-2">
-                            Chat akan tersedia pada waktu janji temu
+                            Chat will be available at appointment time
                           </p>
                           <p className="text-sm text-gray-400">
                             {formatTime(selectedChat.formattedAppointmentTime)}{" "}
-                            pada {selectedChat.formattedAppointmentDate}
+                            on {selectedChat.formattedAppointmentDate}
                           </p>
                         </div>
                       </div>
                     ) : messages.length === 0 ? (
                       <div className="h-full flex items-center justify-center text-gray-500">
                         {getChatStatus(selectedChat) === "expired"
-                          ? "Tidak ada pesan yang dipertukarkan selama konsultasi ini."
-                          : "Belum ada pesan. Mulai percakapan!"}
+                          ? "No messages were exchanged during this consultation."
+                          : "No messages yet. Start the conversation!"}
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -739,7 +727,7 @@ export default function PatientDashboard() {
                               <div className="mb-1">
                                 <span className="text-xs font-medium text-gray-600">
                                   {msg.senderId === user.uid
-                                    ? "Anda"
+                                    ? "You"
                                     : selectedChat.doctorName}
                                 </span>
                               </div>
@@ -747,7 +735,7 @@ export default function PatientDashboard() {
                                 <div className="mb-2">
                                   <img
                                     src={msg.imageUrl}
-                                    alt="Gambar chat"
+                                    alt="Chat image"
                                     className="max-w-full h-auto rounded"
                                   />
                                 </div>
@@ -763,7 +751,7 @@ export default function PatientDashboard() {
                                     ? new Date(
                                         msg.createdAt
                                       ).toLocaleTimeString()
-                                    : "Baru saja")}
+                                    : "Just now")}
                               </p>
                             </div>
                           </div>
@@ -772,93 +760,75 @@ export default function PatientDashboard() {
                     )}
                   </div>
 
-                  {/* Area input - hanya tampil jika chat aktif */}
+                  {/* Input area - only show if chat is active */}
                   {getChatStatus(selectedChat) === "active" && (
-                    <form
-                      onSubmit={handleSendMessage}
-                      className="p-4 border-t border-gray-200"
-                    >
-                      <div className="p-4 border-t border-gray-200">
-                        <div className="flex gap-2">
-                          {/* Input text */}
-                          <input
-                            type="text"
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            placeholder="Ketik pesan Anda..."
-                            className="flex-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                            onKeyPress={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault(); // Prevent default enter behavior
-                                handleSendMessage();
-                              }
-                            }}
-                            autoComplete="off"
-                          />
-                          <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleImageUpload}
-                            accept="image/*"
-                            className="hidden"
-                            id="file-input"
-                          />
+                    <div className="p-4 border-t border-gray-200">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          placeholder="Type your message..."
+                          className="flex-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                          onKeyPress={(e) =>
+                            e.key === "Enter" &&
+                            !e.shiftKey &&
+                            handleSendMessage()
+                          }
+                          autoComplete="off"
+                        />
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleImageUpload}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <button
+                          onClick={triggerFileInput}
+                          className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                          title="Upload image"
+                        >
+                          <Images size={24} />
+                        </button>
+                        <button
+                          onClick={handleSendMessage}
+                          disabled={
+                            isSending || (!newMessage.trim() && !imageUpload)
+                          }
+                          className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                            isSending || (!newMessage.trim() && !imageUpload)
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
+                          {isSending ? "Sending..." : "Send"}
+                        </button>
+                      </div>
+                      {imageUpload && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-sm">
+                            Image ready: {imageUpload.name}
+                          </span>
                           <button
-                            type="button" // Pastikan type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              triggerFileInput();
-                            }}
-                            className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                            title="Unggah gambar"
+                            onClick={() => setImageUpload(null)}
+                            className="text-red-500 text-sm hover:text-red-700"
                           >
-                            <Images size={24} />
-                          </button>
-                          <button
-                            type="submit" // Gunakan type="submit" jika dalam form
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleSendMessage();
-                            }}
-                            disabled={
-                              isSending || (!newMessage.trim() && !imageUpload)
-                            }
-                            className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
-                              isSending || (!newMessage.trim() && !imageUpload)
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                            }`}
-                          >
-                            {isSending ? "Mengirim..." : "Kirim"}
+                            ✕
                           </button>
                         </div>
-                        {imageUpload && (
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-sm">
-                              Gambar siap: {imageUpload.name}
-                            </span>
-                            <button
-                              onClick={() => setImageUpload(null)}
-                              className="text-red-500 text-sm hover:text-red-700"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </form>
+                      )}
+                    </div>
                   )}
 
-                  {/* Pesan footer untuk chat yang sudah expired */}
+                  {/* Footer message for expired chats */}
                   {getChatStatus(selectedChat) === "expired" && (
                     <div className="p-4 border-t border-gray-200 bg-gray-50">
                       <div className="flex items-center justify-center gap-2">
                         <Archive size={16} className="text-gray-500" />
                         <p className="text-sm text-gray-600 text-center">
-                          Konsultasi ini telah berakhir. Riwayat chat disimpan
-                          untuk catatan Anda.
+                          This consultation has ended. Chat history is preserved
+                          for your records.
                         </p>
                       </div>
                     </div>
@@ -867,85 +837,10 @@ export default function PatientDashboard() {
               ) : (
                 <div className="h-full flex items-center justify-center text-gray-500">
                   {activeChats.length === 0
-                    ? "Tidak ada konsultasi tersedia. Buat janji temu untuk mulai chatting."
-                    : "Pilih konsultasi untuk melihat pesan"}
+                    ? "No consultations available. Book an appointment to start chatting."
+                    : "Select a consultation to view messages"}
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Modal Rating */}
-        {showRatingModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-xl w-full max-w-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">Beri Nilai Konsultasi</h2>
-                <button
-                  onClick={() => setShowRatingModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="text-center mb-6">
-                <p className="mb-4">
-                  Bagaimana pengalaman konsultasi Anda dengan Dr.{" "}
-                  {selectedChat?.doctorName}?
-                </p>
-
-                <div className="flex justify-center gap-2 mb-4">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setRating(star)}
-                      className={`text-3xl ${
-                        rating >= star ? "text-yellow-400" : "text-gray-300"
-                      }`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-
-                <p className="text-sm text-gray-500 mb-2">
-                  {rating === 1 && "Buruk"}
-                  {rating === 2 && "Cukup"}
-                  {rating === 3 && "Baik"}
-                  {rating === 4 && "Sangat Baik"}
-                  {rating === 5 && "Luar Biasa"}
-                </p>
-
-                <textarea
-                  placeholder="Masukan tambahan (maks 200 karakter)"
-                  className="w-full p-3 border border-gray-300 rounded-lg mt-4"
-                  rows={3}
-                  maxLength={200}
-                  value={ratingComment}
-                  onChange={(e) => setRatingComment(e.target.value)}
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setShowRatingModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
-                >
-                  Lewati
-                </button>
-                <button
-                  onClick={submitRating}
-                  disabled={rating === 0 || isSubmittingRating}
-                  className={`px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 ${
-                    rating === 0 || isSubmittingRating
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                >
-                  {isSubmittingRating ? "Mengirim..." : "Kirim Penilaian"}
-                </button>
-              </div>
             </div>
           </div>
         )}
@@ -1006,6 +901,10 @@ export default function PatientDashboard() {
               return;
             } else if (userData.role === "admin") {
               router.push("/dashboard/admin");
+              return;
+            } else if (userData.role !== "user") {
+              // If role is not recognized, redirect to home
+              router.push("/");
               return;
             }
 
@@ -1724,12 +1623,9 @@ export default function PatientDashboard() {
       }
     };
 
-    const triggerFileInput = useCallback(() => {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Reset value setiap kali dipanggil
-        fileInputRef.current.click();
-      }
-    }, []);
+    const triggerFileInput = () => {
+      fileInputRef.current.click();
+    };
 
     const handleSave = async () => {
       try {
