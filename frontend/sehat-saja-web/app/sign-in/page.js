@@ -122,6 +122,7 @@ export default function SignIn() {
                             </div>
                         </div>
                     </div>
+                    
 
                     <div className="first-right w-full h-full flex items-center">
                         <div className="second-left w-[75%] h-[85%] bg-blue-500 rounded-r-2xl relative">
