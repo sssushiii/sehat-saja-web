@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
 const SmallMapComponent = dynamic(() => import("@/components/SmallMapComponent"), {

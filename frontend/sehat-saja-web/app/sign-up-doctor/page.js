@@ -115,7 +115,7 @@ export default function SignUpDoctor() {
   };
 
   const validateThirdStep = () => {
-    if (!specialization || !licenseNumber || !price) {
+    if (!specialization || !licenseNumber || !price || !birthDate) {
       setError('Harap isi semua field yang diperlukan');
       return false;
     }
@@ -172,7 +172,7 @@ export default function SignUpDoctor() {
         email,
         phone,
         gender,
-        birthDate: birthDate || "",
+        birthDate,
         photoUrl: profileImage || "",
         role: "doctor",
         specialization,
@@ -442,20 +442,6 @@ export default function SignUpDoctor() {
                       </label>
                     </div>
 
-                    <div className="birthdate w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
-                      <CalendarBlank size={26} color="#858585" weight="bold" />
-                      <div className="w-[80%] h-full flex items-center relative">
-                        <input
-                          type="date"
-                          value={birthDate}
-                          onChange={(e) => setBirthDate(e.target.value)}
-                          className="h-full w-full outline-none font-semibold text-sm bg-transparent text-gray-700"
-                          max={new Date().toISOString().split("T")[0]}
-                          disabled={loading}
-                        />
-                      </div>
-                    </div>
-
                     {error && (
                       <div className="text-red-500 text-sm font-medium py-2">
                         {error}
@@ -499,6 +485,21 @@ export default function SignUpDoctor() {
                     onSubmit={handleSubmit}
                     className="flex flex-col justify-between h-full gap-3"
                   >
+                    <div className="birthdate w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
+                      <CalendarBlank size={26} color="#858585" weight="bold" />
+                      <div className="w-[80%] h-full flex items-center relative">
+                        <input
+                          type="date"
+                          value={birthDate}
+                          onChange={(e) => setBirthDate(e.target.value)}
+                          className="h-full w-full outline-none font-semibold text-sm bg-transparent text-gray-700"
+                          max={new Date().toISOString().split("T")[0]}
+                          required
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
+
                     <div className="specialization w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
                       <FirstAid size={26} color="#858585" weight="bold" />
                       <select
@@ -624,21 +625,6 @@ export default function SignUpDoctor() {
   );
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // 'use client';
 
 // import { useState, useRef } from 'react';
@@ -658,7 +644,6 @@ export default function SignUpDoctor() {
 //   CalendarBlank,
 //   IdentificationCard,
 //   FirstAid,
-//   Info,
 //   CurrencyDollar
 // } from "@phosphor-icons/react/dist/ssr";
 // import Link from "next/link";
@@ -674,7 +659,6 @@ export default function SignUpDoctor() {
 //   const [birthDate, setBirthDate] = useState('');
 //   const [specialization, setSpecialization] = useState('');
 //   const [licenseNumber, setLicenseNumber] = useState('');
-//   const [about, setAbout] = useState('');
 //   const [price, setPrice] = useState('');
 //   const [profileImage, setProfileImage] = useState(null);
   
@@ -758,24 +742,12 @@ export default function SignUpDoctor() {
 //   };
 
 //   const validateThirdStep = () => {
-//     if (!specialization || !licenseNumber || !birthDate) {
+//     if (!specialization || !licenseNumber || !price) {
 //       setError('Harap isi semua field yang diperlukan');
 //       return false;
 //     }
 //     if (!/^[A-Za-z0-9]{8,20}$/.test(licenseNumber)) {
 //       setError('Nomor lisensi harus 8-20 karakter alfanumerik');
-//       return false;
-//     }
-//     return true;
-//   };
-
-//   const validateFourthStep = () => {
-//     if (!about || !price) {
-//       setError('Harap isi semua field yang diperlukan');
-//       return false;
-//     }
-//     if (about.length < 50) {
-//       setError('Deskripsi minimal 50 karakter');
 //       return false;
 //     }
 //     if (!/^\d+$/.test(price)) {
@@ -802,19 +774,11 @@ export default function SignUpDoctor() {
 //     }
 //   };
 
-//   const handleThirdStepSubmit = (e) => {
-//     e.preventDefault();
-//     if (validateThirdStep()) {
-//       setStep(4);
-//       setError('');
-//     }
-//   };
-
 //   const handleSubmit = async (e) => {
 //     e.preventDefault();
 //     setError('');
     
-//     if (!validateFourthStep()) return;
+//     if (!validateThirdStep()) return;
     
 //     setLoading(true);
     
@@ -828,28 +792,30 @@ export default function SignUpDoctor() {
 //         displayName: name,
 //       });
 
-//       // 3. Save additional doctor data to Firestore
+//       // 3. Save additional doctor data to Firestore sesuai struktur entitas
 //       await setDoc(doc(db, "users", user.uid), {
 //         uid: user.uid,
 //         name,
 //         email,
 //         phone,
 //         gender,
-//         birthDate: birthDate || null,
+//         birthDate: birthDate || "",
 //         photoUrl: profileImage || "",
 //         role: "doctor",
 //         specialization,
 //         licenseNumber,
-//         about,
 //         price: parseInt(price),
 //         status: "pending", // Admin needs to verify doctor credentials
+//         description: "", // Kosong, akan diisi di dashboard
+//         dailySchedules: {}, // Kosong, akan diisi di dashboard
 //         createdAt: serverTimestamp(),
-//         lastLogin: serverTimestamp()
+//         lastLogin: serverTimestamp(),
+//         updatedAt: serverTimestamp()
 //       });
 
 //       // 4. Redirect to sign in with success message
 //       router.push(
-//         "/sign-in?success=Doctor account created successfully. Please wait for admin verification."
+//         "/sign-in-doctor?success=Doctor account created successfully. Please wait for admin verification."
 //       );
 //     } catch (error) {
 //       console.error("Error during sign up:", error);
@@ -1103,6 +1069,20 @@ export default function SignUpDoctor() {
 //                       </label>
 //                     </div>
 
+//                     <div className="birthdate w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
+//                       <CalendarBlank size={26} color="#858585" weight="bold" />
+//                       <div className="w-[80%] h-full flex items-center relative">
+//                         <input
+//                           type="date"
+//                           value={birthDate}
+//                           onChange={(e) => setBirthDate(e.target.value)}
+//                           className="h-full w-full outline-none font-semibold text-sm bg-transparent text-gray-700"
+//                           max={new Date().toISOString().split("T")[0]}
+//                           disabled={loading}
+//                         />
+//                       </div>
+//                     </div>
+
 //                     {error && (
 //                       <div className="text-red-500 text-sm font-medium py-2">
 //                         {error}
@@ -1143,7 +1123,7 @@ export default function SignUpDoctor() {
 //                   </div>
 
 //                   <form
-//                     onSubmit={handleThirdStepSubmit}
+//                     onSubmit={handleSubmit}
 //                     className="flex flex-col justify-between h-full gap-3"
 //                   >
 //                     <div className="specialization w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
@@ -1187,80 +1167,6 @@ export default function SignUpDoctor() {
 //                       />
 //                     </div>
 
-//                     <div className="birthdate w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
-//                       <CalendarBlank size={26} color="#858585" weight="bold" />
-//                       <div className="w-[80%] h-full flex items-center relative">
-//                         <input
-//                           type="date"
-//                           required
-//                           value={birthDate}
-//                           onChange={(e) => setBirthDate(e.target.value)}
-//                           className="h-full w-full outline-none font-semibold text-sm bg-transparent text-gray-700"
-//                           max={new Date().toISOString().split("T")[0]}
-//                           disabled={loading}
-//                         />
-//                       </div>
-//                     </div>
-
-//                     {error && (
-//                       <div className="text-red-500 text-sm font-medium py-2">
-//                         {error}
-//                       </div>
-//                     )}
-
-//                     <div className="flex gap-2">
-//                       <button
-//                         type="button"
-//                         onClick={() => setStep(2)}
-//                         className="w-full bg-gray-200 hover:bg-gray-300 transition-all ease-in-out duration-200 text-gray-700 font-semibold h-16 rounded-md flex justify-center items-center"
-//                         disabled={loading}
-//                       >
-//                         Back
-//                       </button>
-//                       <button
-//                         type="submit"
-//                         className="w-full bg-blue-500 hover:bg-blue-600 transition-all ease-in-out duration-200 text-white font-semibold h-16 rounded-md flex justify-center items-center"
-//                         disabled={loading}
-//                       >
-//                         Continue
-//                       </button>
-//                     </div>
-//                   </form>
-//                 </>
-//               )}
-
-//               {/* Step 4: Professional Details (About & Price) */}
-//               {step === 4 && (
-//                 <>
-//                   <div className="signin-title mb-4">
-//                     <h1 className="font-semibold text-3xl">
-//                       Professional Details
-//                     </h1>
-//                     <h1 className="font-light">
-//                       Tell us more about your practice
-//                     </h1>
-//                   </div>
-
-//                   <form
-//                     onSubmit={handleSubmit}
-//                     className="flex flex-col justify-between h-full gap-3"
-//                   >
-//                     <div className="about w-full bg-gray-100 rounded-md flex flex-col p-4 text-gray-500">
-//                       <div className="flex items-center gap-2 mb-2">
-//                         <Info size={26} color="#858585" weight="bold" />
-//                         <label className="font-semibold">About You</label>
-//                       </div>
-//                       <textarea
-//                         placeholder="Describe your experience, qualifications, and approach to patient care (minimum 50 characters)"
-//                         required
-//                         minLength={50}
-//                         value={about}
-//                         onChange={(e) => setAbout(e.target.value)}
-//                         className="w-full outline-none font-semibold text-sm bg-transparent min-h-[100px] resize-none"
-//                         disabled={loading}
-//                       />
-//                     </div>
-
 //                     <div className="price w-full bg-gray-100 h-16 rounded-md flex justify-evenly items-center text-gray-500">
 //                       <CurrencyDollar size={26} color="#858585" weight="bold" />
 //                       <input
@@ -1284,7 +1190,7 @@ export default function SignUpDoctor() {
 //                     <div className="flex gap-2">
 //                       <button
 //                         type="button"
-//                         onClick={() => setStep(3)}
+//                         onClick={() => setStep(2)}
 //                         className="w-full bg-gray-200 hover:bg-gray-300 transition-all ease-in-out duration-200 text-gray-700 font-semibold h-16 rounded-md flex justify-center items-center"
 //                         disabled={loading}
 //                       >

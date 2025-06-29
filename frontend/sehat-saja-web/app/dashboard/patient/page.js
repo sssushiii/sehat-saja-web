@@ -40,7 +40,7 @@ import {
   serverTimestamp,
   Timestamp,
   orderBy,
-  addDoc 
+  addDoc,
 } from "firebase/firestore";
 import {
   ref,
@@ -68,6 +68,7 @@ export default function PatientDashboard() {
   const router = useRouter();
 
   const ChatView = () => {
+    // State untuk manajemen chat
     const [activeChats, setActiveChats] = useState([]);
     const [selectedChat, setSelectedChat] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -79,18 +80,27 @@ export default function PatientDashboard() {
     const [chatExpiryTimer, setChatExpiryTimer] = useState(null);
     const fileInputRef = useRef(null);
 
-    // State untuk rating system
+    // State untuk sistem rating
     const [showRatingModal, setShowRatingModal] = useState(false);
     const [rating, setRating] = useState(0);
     const [ratingComment, setRatingComment] = useState("");
     const [isSubmittingRating, setIsSubmittingRating] = useState(false);
     const [hasRated, setHasRated] = useState(false);
 
+    // Fungsi untuk mengecek apakah chat bisa dimulai
     const canStartChat = (chat) => {
+      // Cek status pembayaran pertama kali
+      if (chat.paymentStatus !== "completed") {
+        return false;
+      }
+
+      // Cek data janji temu
       if (!chat.appointmentId) return false;
       const appointmentDate = chat.appointmentDate;
       const appointmentTime = chat.appointmentTime;
       if (!appointmentDate || !appointmentTime) return false;
+
+      // Cek waktu sekarang vs waktu janji temu
       const appointmentDateTime = new Date(
         `${appointmentDate}T${appointmentTime}:00`
       );
@@ -98,11 +108,13 @@ export default function PatientDashboard() {
       return now >= appointmentDateTime;
     };
 
+    // Fungsi untuk mengecek apakah chat sudah expired
     const isChatExpired = (chat) => {
       if (!chat.appointmentId) return false;
       const appointmentDate = chat.appointmentDate;
       const appointmentTime = chat.appointmentTime;
       if (!appointmentDate || !appointmentTime) return true;
+
       const appointmentDateTime = new Date(
         `${appointmentDate}T${appointmentTime}:00`
       );
@@ -113,13 +125,25 @@ export default function PatientDashboard() {
       return now > expiryTime;
     };
 
+    // Fungsi untuk mendapatkan status chat
     const getChatStatus = (chat) => {
+      // Prioritas pertama: cek pembayaran
+      if (chat.paymentStatus !== "completed") {
+        return "unpaid";
+      }
+
       if (!canStartChat(chat)) return "not_started";
       if (isChatExpired(chat)) return "expired";
       return "active";
     };
 
+    // Fungsi untuk menghitung waktu tersisa
     const getTimeRemaining = (chat) => {
+      // Jika belum bayar, tampilkan info pembayaran
+      if (chat.paymentStatus !== "completed") {
+        return "Menunggu pembayaran";
+      }
+
       if (!chat.appointmentDate || !chat.appointmentTime) return null;
       const appointmentDateTime = new Date(
         `${chat.appointmentDate}T${chat.appointmentTime}:00`
@@ -143,9 +167,12 @@ export default function PatientDashboard() {
       }
     };
 
+    // Fungsi untuk mendapatkan deskripsi status chat
     const getChatStatusDescription = (chat) => {
       const status = getChatStatus(chat);
       switch (status) {
+        case "unpaid":
+          return "Silakan selesaikan pembayaran untuk memulai chat";
         case "not_started":
           return "Chat akan tersedia pada waktu janji temu";
         case "active":
@@ -157,6 +184,7 @@ export default function PatientDashboard() {
       }
     };
 
+    // Fungsi untuk mengecek apakah sudah memberi rating
     const checkIfRated = useCallback(
       async (chatId) => {
         if (!user?.uid || !chatId) return false;
@@ -174,6 +202,7 @@ export default function PatientDashboard() {
       [user?.uid]
     );
 
+    // Fungsi untuk submit rating
     const submitRating = async () => {
       if (!selectedChat || rating === 0 || isSubmittingRating) return;
 
@@ -189,6 +218,7 @@ export default function PatientDashboard() {
           createdAt: serverTimestamp(),
         });
 
+        // Update rating dokter
         const doctorRef = doc(db, "users", selectedChat.doctorId);
         const doctorSnap = await getDoc(doctorRef);
 
@@ -217,6 +247,7 @@ export default function PatientDashboard() {
       }
     };
 
+    // Fungsi untuk setup timer expiry chat
     const setupChatExpiryTimer = useCallback((chat) => {
       if (!chat?.appointmentDate || !chat?.appointmentTime) return;
 
@@ -242,6 +273,7 @@ export default function PatientDashboard() {
       return null;
     }, []);
 
+    // Fungsi untuk mengambil data chat
     const fetchChats = useCallback(async () => {
       if (!user) return;
 
@@ -258,6 +290,7 @@ export default function PatientDashboard() {
           appointmentsSnapshot.docs.map(async (appointmentDoc) => {
             const appointmentData = appointmentDoc.data();
 
+            // Cek jika status appointment bukan confirmed
             if (appointmentData.status !== "confirmed") {
               const chatQuery = query(
                 collection(db, "chats"),
@@ -268,6 +301,7 @@ export default function PatientDashboard() {
               if (chatSnapshot.empty) return null;
             }
 
+            // Query untuk chat
             const chatQuery = query(
               collection(db, "chats"),
               where("appointmentId", "==", appointmentDoc.id),
@@ -281,6 +315,7 @@ export default function PatientDashboard() {
               chatData = chatSnapshot.docs[0].data();
               chatId = chatSnapshot.docs[0].id;
             } else if (appointmentData.status === "confirmed") {
+              // Buat chat baru jika appointment confirmed
               const newChatRef = await addDoc(collection(db, "chats"), {
                 appointmentId: appointmentDoc.id,
                 patientId: user.uid,
@@ -291,6 +326,8 @@ export default function PatientDashboard() {
                 updatedAt: new Date(),
                 appointmentDate: appointmentData.appointmentDate,
                 appointmentTime: appointmentData.appointmentTime,
+                paymentStatus: appointmentData.paymentStatus || "pending",
+                price: appointmentData.price || 0,
               });
               chatId = newChatRef.id;
               chatData = {
@@ -303,11 +340,14 @@ export default function PatientDashboard() {
                 updatedAt: new Date(),
                 appointmentDate: appointmentData.appointmentDate,
                 appointmentTime: appointmentData.appointmentTime,
+                paymentStatus: appointmentData.paymentStatus || "pending",
+                price: appointmentData.price || 0,
               };
             } else {
               return null;
             }
 
+            // Ambil data dokter
             let doctorName = "Dokter";
             if (appointmentData.doctorId) {
               const doctorDocSnap = await getDoc(
@@ -321,6 +361,7 @@ export default function PatientDashboard() {
               }
             }
 
+            // Format tanggal appointment
             let formattedAppointmentDate = "N/A";
             if (appointmentData.appointmentDate) {
               const dateObj = new Date(appointmentData.appointmentDate);
@@ -344,10 +385,14 @@ export default function PatientDashboard() {
               formattedAppointmentTime: appointmentData.appointmentTime,
               complaint: appointmentData.complaint,
               appointmentStatus: appointmentData.status,
+              paymentStatus: appointmentData.paymentStatus || "pending",
+              price: appointmentData.price || 0,
+              priceDisplay: appointmentData.priceDisplay || "Rp 0",
             };
           })
         );
 
+        // Filter chat yang valid dan urutkan
         const validChats = chats.filter((chat) => chat !== null);
         validChats.sort((a, b) => {
           const dateA = new Date(
@@ -371,13 +416,14 @@ export default function PatientDashboard() {
       }
     }, [user.uid]);
 
+    // Effect untuk fetch chat saat component mount
     useEffect(() => {
       if (user?.uid) {
-        // Pastikan user.uid ada
         fetchChats();
       }
-    }, [user?.uid, fetchChats]); // Gunakan user.uid dan fetchChats sebagai dependency
+    }, [user?.uid, fetchChats]);
 
+    // Effect untuk setup timer expiry
     useEffect(() => {
       if (chatExpiryTimer) {
         clearTimeout(chatExpiryTimer);
@@ -390,7 +436,7 @@ export default function PatientDashboard() {
           setChatExpiryTimer(timerId);
         }
 
-        // Cek rating saat chat dipilih dan sudah expired
+        // Cek rating jika chat sudah expired
         if (getChatStatus(selectedChat) === "expired") {
           checkIfRated(selectedChat.id).then((rated) => {
             setHasRated(rated);
@@ -408,6 +454,7 @@ export default function PatientDashboard() {
       };
     }, [selectedChat?.id, setupChatExpiryTimer, checkIfRated]);
 
+    // Effect untuk listen perubahan chat
     useEffect(() => {
       if (!selectedChat) return;
 
@@ -417,8 +464,6 @@ export default function PatientDashboard() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setMessages(data.messages || []);
-
-            // Update chat terpilih jika perlu
             setSelectedChat((prev) => (prev ? { ...prev, ...data } : null));
           }
         },
@@ -428,12 +473,13 @@ export default function PatientDashboard() {
       );
 
       return () => unsubscribe();
-    }, [selectedChat?.id]); // Hanya depend pada selectedChat.id
+    }, [selectedChat?.id]);
 
+    // Fungsi untuk mengirim pesan
     const handleSendMessage = async (e) => {
       if (e) {
-        e.preventDefault(); // Tambahkan ini untuk mencegah behavior default form
-        e.stopPropagation(); // Hentikan bubbling event
+        e.preventDefault();
+        e.stopPropagation();
       }
 
       if ((!newMessage.trim() && !imageUpload) || !selectedChat) return;
@@ -456,6 +502,7 @@ export default function PatientDashboard() {
           createdAt: new Date(),
         };
 
+        // Handle image upload
         if (imageUpload) {
           try {
             const reader = new FileReader();
@@ -473,6 +520,7 @@ export default function PatientDashboard() {
           }
         }
 
+        // Update data chat
         const updateData = {
           messages: arrayUnion(newMessageObj),
           updatedAt: serverTimestamp(),
@@ -493,6 +541,7 @@ export default function PatientDashboard() {
       }
     };
 
+    // Fungsi untuk handle upload gambar
     const handleImageUpload = (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -509,10 +558,12 @@ export default function PatientDashboard() {
       }
     };
 
+    // Fungsi untuk trigger file input
     const triggerFileInput = () => {
       fileInputRef.current.click();
     };
 
+    // Fungsi untuk format waktu
     const formatTime = (timeString) => {
       if (!timeString) return "N/A";
       const [hours, minutes] = timeString.split(":");
@@ -522,9 +573,16 @@ export default function PatientDashboard() {
       return `${hour12}:${minutes} ${ampm}`;
     };
 
+    // Fungsi untuk menampilkan badge status
     const getStatusBadge = (chat) => {
       const status = getChatStatus(chat);
       switch (status) {
+        case "unpaid":
+          return (
+            <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+              Belum Bayar
+            </span>
+          );
         case "not_started":
           return (
             <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
@@ -550,6 +608,7 @@ export default function PatientDashboard() {
 
     return (
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <ChatCircleDots size={24} /> Konsultasi Chat
@@ -562,6 +621,7 @@ export default function PatientDashboard() {
           </button>
         </div>
 
+        {/* Loading state */}
         {loadingChats ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -571,7 +631,7 @@ export default function PatientDashboard() {
           <div className="bg-red-50 text-red-600 p-4 rounded-lg">{error}</div>
         ) : (
           <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-200px)]">
-            {/* Daftar chat sidebar */}
+            {/* Sidebar daftar chat */}
             <div className="w-full md:w-1/3 bg-white rounded-xl shadow border border-gray-100 p-4 overflow-y-auto">
               <h2 className="font-semibold mb-4">Konsultasi Anda</h2>
               {activeChats.length === 0 ? (
@@ -648,7 +708,7 @@ export default function PatientDashboard() {
               )}
             </div>
 
-            {/* Area chat */}
+            {/* Area chat utama */}
             <div className="flex-1 flex flex-col bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
               {selectedChat ? (
                 <>
@@ -674,6 +734,7 @@ export default function PatientDashboard() {
                       </div>
                     </div>
 
+                    {/* Info keluhan */}
                     {selectedChat.complaint && (
                       <div className="mt-3 p-2 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">
@@ -683,16 +744,75 @@ export default function PatientDashboard() {
                       </div>
                     )}
 
-                    {/* Informasi status */}
-                    <div className="mt-3 p-2 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-blue-700">
+                    {/* Info pembayaran */}
+                    <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Status Pembayaran:</span>{" "}
+                        {selectedChat.paymentStatus === "completed" ? (
+                          <span className="text-green-600">
+                            Lunas (Rp {selectedChat.priceDisplay})
+                          </span>
+                        ) : (
+                          <span className="text-red-600">
+                            Belum dibayar (Rp {selectedChat.priceDisplay})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Info status chat */}
+                    <div
+                      className={`mt-3 p-2 rounded-lg ${
+                        getChatStatus(selectedChat) === "unpaid"
+                          ? "bg-red-50 text-red-700"
+                          : "bg-blue-50 text-blue-700"
+                      }`}
+                    >
+                      <p className="text-sm">
                         {getChatStatusDescription(selectedChat)}
                       </p>
                     </div>
                   </div>
 
+                  {/* Area pesan */}
                   <div className="flex-1 p-4 overflow-y-auto">
-                    {getChatStatus(selectedChat) === "not_started" ? (
+                    {getChatStatus(selectedChat) === "unpaid" ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center">
+                        <div className="mb-4">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-12 w-12 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-800 mb-2">
+                          Pembayaran Belum Lunas
+                        </h3>
+                        <p className="text-gray-600 mb-4">
+                          Silakan selesaikan pembayaran untuk memulai konsultasi
+                          chat dengan dokter.
+                        </p>
+                        <button
+                          onClick={() => {
+                            // Arahkan ke halaman pembayaran
+                            // Contoh: router.push(`/payment/${selectedChat.appointmentId}`);
+                            alert("Redirect ke halaman pembayaran");
+                          }}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          Bayar Sekarang
+                        </button>
+                      </div>
+                    ) : getChatStatus(selectedChat) === "not_started" ? (
                       <div className="h-full flex items-center justify-center text-center">
                         <div>
                           <div className="mb-4">
@@ -772,7 +892,7 @@ export default function PatientDashboard() {
                     )}
                   </div>
 
-                  {/* Area input - hanya tampil jika chat aktif */}
+                  {/* Area input pesan - hanya tampil jika chat aktif */}
                   {getChatStatus(selectedChat) === "active" && (
                     <form
                       onSubmit={handleSendMessage}
@@ -789,12 +909,13 @@ export default function PatientDashboard() {
                             className="flex-1 p-2 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                             onKeyPress={(e) => {
                               if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault(); // Prevent default enter behavior
+                                e.preventDefault();
                                 handleSendMessage();
                               }
                             }}
                             autoComplete="off"
                           />
+                          {/* Input file */}
                           <input
                             type="file"
                             ref={fileInputRef}
@@ -803,8 +924,9 @@ export default function PatientDashboard() {
                             className="hidden"
                             id="file-input"
                           />
+                          {/* Tombol upload gambar */}
                           <button
-                            type="button" // Pastikan type="button"
+                            type="button"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -815,8 +937,9 @@ export default function PatientDashboard() {
                           >
                             <Images size={24} />
                           </button>
+                          {/* Tombol kirim */}
                           <button
-                            type="submit" // Gunakan type="submit" jika dalam form
+                            type="submit"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();

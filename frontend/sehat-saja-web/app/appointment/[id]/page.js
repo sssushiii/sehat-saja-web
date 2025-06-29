@@ -7,10 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { auth, db } from "../../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import {
-  EnvelopeSimple, 
-  Phone,
-} from "@phosphor-icons/react";
+import { EnvelopeSimple, Phone } from "@phosphor-icons/react";
 import {
   doc,
   getDoc,
@@ -18,12 +15,56 @@ import {
   addDoc,
   serverTimestamp,
   writeBatch,
-  updateDoc, 
+  updateDoc,
 } from "firebase/firestore";
 
 export default function AppointmentPage() {
   const { id } = useParams();
   const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+
+            // Cek role dan redirect jika bukan "user"
+            if (userData.role === "admin") {
+              router.push("/dashboard/admin");
+              return;
+            } else if (userData.role === "doctor") {
+              router.push("/dashboard/doctor");
+              return;
+            } else if (userData.role !== "user") {
+              // Role tidak dikenal, redirect ke home
+              router.push("/");
+              return;
+            }
+
+            // Jika role adalah "user", biarkan akses halaman
+            // Set user state jika diperlukan
+            setUser(currentUser);
+            setLoading(false);
+          } else {
+            // User document tidak ada, redirect ke home
+            router.push("/");
+          }
+        } catch (error) {
+          console.error("Error checking user role:", error);
+          router.push("/sign-in");
+        }
+      } else {
+        // User tidak login, redirect ke sign-in
+        router.push("/sign-in");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   // Doctor data state
   const [doctor, setDoctor] = useState(null);
@@ -56,11 +97,11 @@ export default function AppointmentPage() {
     const year = date.getFullYear();
     const month = date.getMonth() + 1; // 0-based ke 1-based
     const day = date.getDate();
-    
-    const monthStr = String(month).padStart(2, '0');
-    const dayStr = String(day).padStart(2, '0');
+
+    const monthStr = String(month).padStart(2, "0");
+    const dayStr = String(day).padStart(2, "0");
     const result = `${year}-${monthStr}-${dayStr}`;
-    
+
     return result;
   };
 
@@ -68,54 +109,57 @@ export default function AppointmentPage() {
   const generateDates = () => {
     const dates = [];
     const today = new Date();
-    
+
     // Include today (i=0) sampai 30 hari ke depan (i=30)
     for (let i = 0; i <= 30; i++) {
       const targetDate = new Date(today);
       targetDate.setDate(today.getDate() + i);
       dates.push(targetDate);
     }
-    
+
     return dates;
   };
 
   // ✅ FUNCTION UNTUK CALCULATE AVAILABLE DATES
   const calculateAvailableDates = (doctorData) => {
     if (!doctorData?.dailySchedules) {
-      console.log('No doctor schedules available');
+      console.log("No doctor schedules available");
       setAvailableDates([]);
       return;
     }
 
     const generatedDates = generateDates();
     const validDates = [];
-    
-    console.log('=== CALCULATING AVAILABLE DATES ===');
-    console.log('Doctor schedules:', Object.keys(doctorData.dailySchedules));
-    
+
+    console.log("=== CALCULATING AVAILABLE DATES ===");
+    console.log("Doctor schedules:", Object.keys(doctorData.dailySchedules));
+
     generatedDates.forEach((date, index) => {
-      if (index > 15) return; 
-      
+      if (index > 15) return;
+
       const formatted = formatDateForDatabase(date);
       const schedule = doctorData.dailySchedules[formatted];
-      const validTimes = schedule ? schedule.filter(t => t !== "00:00") : [];
+      const validTimes = schedule ? schedule.filter((t) => t !== "00:00") : [];
       const isValid = validTimes.length > 0;
-      
+
       console.log(`Day +${index}: ${date.toDateString()} → ${formatted}`);
-      console.log(`  Schedule:`, schedule || 'None');
+      console.log(`  Schedule:`, schedule || "None");
       console.log(`  Valid times:`, validTimes);
       console.log(`  Is valid:`, isValid);
-      
+
       if (isValid) {
         validDates.push(date);
         console.log(`  ✅ ADDED to available dates`);
       }
     });
-    
-    console.log('=== SETTING AVAILABLE DATES ===');
-    console.log('Valid dates count:', validDates.length);
-    console.log('Valid dates:', validDates.map(d => formatDateForDatabase(d)));
-    
+
+    console.log("=== SETTING AVAILABLE DATES ===");
+    console.log("Valid dates count:", validDates.length);
+    console.log(
+      "Valid dates:",
+      validDates.map((d) => formatDateForDatabase(d))
+    );
+
     setAvailableDates(validDates);
   };
 
@@ -125,65 +169,76 @@ export default function AppointmentPage() {
       setAvailableTimes([]);
       return;
     }
-    
+
     const formatted = formatDateForDatabase(selectedDateObj);
     const schedule = doctor.dailySchedules[formatted] || [];
-    const validTimes = schedule.filter(t => t !== "00:00");
-    
-    console.log('Calculating times for:', formatted);
-    console.log('Available times:', validTimes);
-    
+    const validTimes = schedule.filter((t) => t !== "00:00");
+
+    console.log("Calculating times for:", formatted);
+    console.log("Available times:", validTimes);
+
     setAvailableTimes(validTimes);
   };
 
   // ✅ FUNCTION UNTUK MENGHAPUS JADWAL DARI DOCTOR SETELAH APPOINTMENT DIBUAT
-  const removeScheduleFromDoctor = async (doctorId, selectedDateFormatted, selectedTime) => {
+  const removeScheduleFromDoctor = async (
+    doctorId,
+    selectedDateFormatted,
+    selectedTime
+  ) => {
     try {
-      console.log('🗑️ Removing schedule:', { doctorId, selectedDateFormatted, selectedTime });
-      
+      console.log("🗑️ Removing schedule:", {
+        doctorId,
+        selectedDateFormatted,
+        selectedTime,
+      });
+
       // Get current doctor data
       const doctorRef = doc(db, "users", doctorId);
       const doctorDoc = await getDoc(doctorRef);
-      
+
       if (!doctorDoc.exists()) {
-        console.error('Doctor document not found');
+        console.error("Doctor document not found");
         return;
       }
-      
+
       const doctorData = doctorDoc.data();
       const currentSchedules = doctorData.dailySchedules || {};
-      
-      console.log('Current schedules for date:', currentSchedules[selectedDateFormatted]);
-      
+
+      console.log(
+        "Current schedules for date:",
+        currentSchedules[selectedDateFormatted]
+      );
+
       // Remove the specific time slot from the date
       if (currentSchedules[selectedDateFormatted]) {
         const updatedTimeSlots = currentSchedules[selectedDateFormatted].filter(
-          time => time !== selectedTime
+          (time) => time !== selectedTime
         );
-        
-        console.log('Updated time slots after removal:', updatedTimeSlots);
-        
+
+        console.log("Updated time slots after removal:", updatedTimeSlots);
+
         // If no time slots left for this date, remove the date entry completely
         if (updatedTimeSlots.length === 0) {
           delete currentSchedules[selectedDateFormatted];
-          console.log('🗑️ Removed entire date as no time slots left');
+          console.log("🗑️ Removed entire date as no time slots left");
         } else {
           currentSchedules[selectedDateFormatted] = updatedTimeSlots;
-          console.log('📝 Updated time slots for date');
+          console.log("📝 Updated time slots for date");
         }
-        
+
         // Update doctor document
         await updateDoc(doctorRef, {
           dailySchedules: currentSchedules,
           updatedAt: new Date(),
         });
-        
-        console.log('✅ Successfully removed schedule from doctor');
+
+        console.log("✅ Successfully removed schedule from doctor");
       } else {
-        console.log('⚠️ No schedule found for the selected date');
+        console.log("⚠️ No schedule found for the selected date");
       }
     } catch (error) {
-      console.error('❌ Error removing schedule from doctor:', error);
+      console.error("❌ Error removing schedule from doctor:", error);
       // Don't throw error - appointment should still be created even if schedule removal fails
     }
   };
@@ -195,7 +250,7 @@ export default function AppointmentPage() {
 
       try {
         setDoctorLoading(true);
-        
+
         // Fetch doctor data
         const doctorDoc = await getDoc(doc(db, "users", id));
         if (!doctorDoc.exists() || doctorDoc.data().role !== "doctor") {
@@ -209,23 +264,29 @@ export default function AppointmentPage() {
           ...doctorData,
           photoUrl: doctorData.photoUrl || "/assets/default-doctor.jpg",
         };
-        
+
         setDoctor(doctorWithDefaults);
-        
+
         // DEBUG: Log doctor schedule setelah di-set
-        console.log('=== DOCTOR SCHEDULE DEBUG ===');
-        console.log('Doctor ID:', doctorWithDefaults.id);
-        console.log('Doctor Name:', doctorWithDefaults.name);
-        console.log('Full dailySchedules object:', doctorWithDefaults.dailySchedules);
-        
+        console.log("=== DOCTOR SCHEDULE DEBUG ===");
+        console.log("Doctor ID:", doctorWithDefaults.id);
+        console.log("Doctor Name:", doctorWithDefaults.name);
+        console.log(
+          "Full dailySchedules object:",
+          doctorWithDefaults.dailySchedules
+        );
+
         if (doctorWithDefaults.dailySchedules) {
-          Object.keys(doctorWithDefaults.dailySchedules).forEach(dateKey => {
-            console.log(`Date: ${dateKey}, Times:`, doctorWithDefaults.dailySchedules[dateKey]);
+          Object.keys(doctorWithDefaults.dailySchedules).forEach((dateKey) => {
+            console.log(
+              `Date: ${dateKey}, Times:`,
+              doctorWithDefaults.dailySchedules[dateKey]
+            );
           });
         } else {
-          console.log('No dailySchedules found for this doctor');
+          console.log("No dailySchedules found for this doctor");
         }
-        console.log('=== END DEBUG ===');
+        console.log("=== END DEBUG ===");
 
         // CALCULATE available dates setelah doctor data di-set
         calculateAvailableDates(doctorWithDefaults);
@@ -256,19 +317,22 @@ export default function AppointmentPage() {
   // ✅ DEBUG USEEFFECT
   useEffect(() => {
     if (doctor?.dailySchedules) {
-      console.log('=== APPOINTMENT PAGE DEBUG ===');
-      console.log('Doctor Schedule:', doctor.dailySchedules);
-      
+      console.log("=== APPOINTMENT PAGE DEBUG ===");
+      console.log("Doctor Schedule:", doctor.dailySchedules);
+
       // Test next 7 days
       const today = new Date();
       for (let i = 1; i <= 7; i++) {
         const testDate = new Date();
         testDate.setDate(today.getDate() + i);
         const formatted = formatDateForDatabase(testDate);
-        console.log(`Day +${i}: ${formatted}`, doctor.dailySchedules[formatted] || 'NO SCHEDULE');
+        console.log(
+          `Day +${i}: ${formatted}`,
+          doctor.dailySchedules[formatted] || "NO SCHEDULE"
+        );
       }
-      
-      console.log('=== END APPOINTMENT DEBUG ===');
+
+      console.log("=== END APPOINTMENT DEBUG ===");
     }
   }, [doctor]);
 
@@ -287,7 +351,12 @@ export default function AppointmentPage() {
     if (isSubmitting) return;
 
     // Validate inputs
-    if (!selectedDate || !selectedTime || !selectedPayment || !complaint.trim()) {
+    if (
+      !selectedDate ||
+      !selectedTime ||
+      !selectedPayment ||
+      !complaint.trim()
+    ) {
       alert("Please complete all required fields");
       return;
     }
@@ -303,16 +372,16 @@ export default function AppointmentPage() {
     try {
       const batch = writeBatch(db);
       const appointmentDateFormatted = formatDateForDatabase(selectedDate);
-      
+
       // Calculate chat expiry (30 minutes after appointment time)
       const [hours, minutes] = selectedTime.split(":");
       const appointmentDateTime = new Date(selectedDate);
       appointmentDateTime.setHours(parseInt(hours), parseInt(minutes));
       const chatExpiry = new Date(appointmentDateTime.getTime() + 30 * 60000);
 
-      console.log('🚀 Creating appointment with schedule removal');
-      console.log('Selected date formatted:', appointmentDateFormatted);
-      console.log('Selected time:', selectedTime);
+      console.log("🚀 Creating appointment with schedule removal");
+      console.log("Selected date formatted:", appointmentDateFormatted);
+      console.log("Selected time:", selectedTime);
 
       // 1. Create appointment
       const appointmentsRef = collection(db, "appointments");
@@ -364,7 +433,7 @@ export default function AppointmentPage() {
       // 3. Create initial chat document
       const chatsRef = collection(db, "chats");
       const newChatRef = doc(chatsRef);
-      
+
       const chatData = {
         appointmentId: newAppointmentRef.id,
         patientId: user.uid,
@@ -377,55 +446,64 @@ export default function AppointmentPage() {
         updatedAt: serverTimestamp(),
         messages: [],
       };
-      
+
       batch.set(newChatRef, chatData);
 
       // ✅ 4. COMMIT BATCH TRANSACTION DULU
       await batch.commit();
-      console.log('✅ Appointment, payment, and chat created successfully');
+      console.log("✅ Appointment, payment, and chat created successfully");
 
       // ✅ 5. HAPUS JADWAL DARI DOCTOR SETELAH APPOINTMENT BERHASIL DIBUAT
-      await removeScheduleFromDoctor(doctor.id, appointmentDateFormatted, selectedTime);
+      await removeScheduleFromDoctor(
+        doctor.id,
+        appointmentDateFormatted,
+        selectedTime
+      );
 
       // ✅ 6. UPDATE LOCAL STATE UNTUK REFLECT PERUBAHAN
       // Remove the selected time from local availableTimes
-      const updatedTimes = availableTimes.filter(time => time !== selectedTime);
+      const updatedTimes = availableTimes.filter(
+        (time) => time !== selectedTime
+      );
       setAvailableTimes(updatedTimes);
-      
+
       // Update local doctor data
-      if (doctor.dailySchedules && doctor.dailySchedules[appointmentDateFormatted]) {
-        const updatedSchedule = doctor.dailySchedules[appointmentDateFormatted].filter(
-          time => time !== selectedTime
-        );
-        
+      if (
+        doctor.dailySchedules &&
+        doctor.dailySchedules[appointmentDateFormatted]
+      ) {
+        const updatedSchedule = doctor.dailySchedules[
+          appointmentDateFormatted
+        ].filter((time) => time !== selectedTime);
+
         const updatedDoctor = {
           ...doctor,
           dailySchedules: {
             ...doctor.dailySchedules,
-            [appointmentDateFormatted]: updatedSchedule.length > 0 ? updatedSchedule : undefined
-          }
+            [appointmentDateFormatted]:
+              updatedSchedule.length > 0 ? updatedSchedule : undefined,
+          },
         };
-        
+
         // Remove the date key if no times left
         if (updatedSchedule.length === 0) {
           delete updatedDoctor.dailySchedules[appointmentDateFormatted];
         }
-        
+
         setDoctor(updatedDoctor);
-        
+
         // Recalculate available dates
         calculateAvailableDates(updatedDoctor);
       }
 
-      console.log('🎉 Appointment created and schedule removed successfully!');
-      
+      console.log("🎉 Appointment created and schedule removed successfully!");
+
       // ✅ SHOW CONFIRMATION DENGAN DATA YANG MASIH ADA
       setShowConfirmation(true);
-      
+
       // ✅ CLEAR SELECTIONS SETELAH MODAL SHOWN (JANGAN SEBELUM)
       // setSelectedDate(null);
       // setSelectedTime(null);
-      
     } catch (error) {
       console.error("Error creating appointment:", error);
       alert("Failed to create appointment. Please try again.");
@@ -435,7 +513,8 @@ export default function AppointmentPage() {
   };
 
   if (doctorLoading) return <AppointmentPageSkeleton />;
-  if (doctorError || !doctor) return <AppointmentPageError error={doctorError} />;
+  if (doctorError || !doctor)
+    return <AppointmentPageError error={doctorError} />;
 
   return (
     <>
@@ -478,8 +557,17 @@ export default function AppointmentPage() {
                   <p className="text-sm text-gray-600">{doctor.description}</p>
                 )}
                 <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500">
-                  <div className="flex"><EnvelopeSimple className="mr-2" size={20} />{doctor.email}</div>
-                  {doctor.phone && <div className="flex"> <Phone size={20} className="mr-2" />{doctor.phone}</div>}
+                  <div className="flex">
+                    <EnvelopeSimple className="mr-2" size={20} />
+                    {doctor.email}
+                  </div>
+                  {doctor.phone && (
+                    <div className="flex">
+                      {" "}
+                      <Phone size={20} className="mr-2" />
+                      {doctor.phone}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -522,7 +610,12 @@ export default function AppointmentPage() {
                           key={idx}
                           type="button"
                           onClick={() => {
-                            console.log('Selected date:', date, 'formatted:', formatDateForDatabase(date));
+                            console.log(
+                              "Selected date:",
+                              date,
+                              "formatted:",
+                              formatDateForDatabase(date)
+                            );
                             setSelectedDate(date);
                             setSelectedTime(null);
                             calculateAvailableTimes(date);
@@ -546,7 +639,8 @@ export default function AppointmentPage() {
                   <div className="text-center py-8 text-gray-500">
                     <p>No available dates found for this doctor.</p>
                     <p className="text-sm mt-2">
-                      Doctor hasn`t set up their schedule yet. Please contact the doctor directly or try again later.
+                      Doctor hasn`t set up their schedule yet. Please contact
+                      the doctor directly or try again later.
                     </p>
                   </div>
                 )}
@@ -564,7 +658,7 @@ export default function AppointmentPage() {
                         key={idx}
                         type="button"
                         onClick={() => {
-                          console.log('Selected time:', time);
+                          console.log("Selected time:", time);
                           setSelectedTime(time);
                         }}
                         className={`p-3 rounded-lg border text-center transition-colors ${
@@ -753,14 +847,15 @@ const ConfirmationModal = ({
           </div>
           <h2 className="text-2xl font-bold mb-3">Appointment Confirmed!</h2>
           <p className="mb-5 text-gray-600">
-            Your appointment has been successfully booked and the time slot has been removed from the doctor`s schedule.
+            Your appointment has been successfully booked and the time slot has
+            been removed from the doctor`s schedule.
           </p>
 
           <div className="bg-blue-50 rounded-lg p-4 mb-6 text-left">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Doctor:</span>
-                <span className="font-medium">{doctor.name || 'N/A'}</span>
+                <span className="font-medium">{doctor.name || "N/A"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Amount:</span>
@@ -771,7 +866,7 @@ const ConfirmationModal = ({
               <div className="flex justify-between">
                 <span className="text-gray-600">Payment:</span>
                 <span className="font-medium">
-                  {selectedPayment?.toString().toUpperCase() || 'N/A'}
+                  {selectedPayment?.toString().toUpperCase() || "N/A"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -787,7 +882,7 @@ const ConfirmationModal = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Time:</span>
-                <span className="font-medium">{selectedTime || 'N/A'}</span>
+                <span className="font-medium">{selectedTime || "N/A"}</span>
               </div>
             </div>
           </div>
