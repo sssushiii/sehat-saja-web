@@ -41,7 +41,7 @@ import {
   arrayUnion,
   serverTimestamp,
   limit,
-  orderBy
+  orderBy,
 } from "firebase/firestore";
 import {
   ref,
@@ -71,6 +71,8 @@ export default function DoctorDashboard() {
   const chatFileInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [users, setUsers] = useState(null);
 
   const monthNames = [
     "January",
@@ -109,37 +111,84 @@ export default function DoctorDashboard() {
     }).format(amount || 0);
   };
 
-  // Data fetching methods
-  const fetchDoctorData = async (uid) => {
-    try {
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setDoctorData({
-          uid: uid,
-          name: data.name || "",
-          email: data.email || "",
-          phone: data.phone || "",
-          specialization: data.specialization || "",
-          gender: data.gender || "",
-          birthDate: data.birthDate || "",
-          licenseNumber: data.licenseNumber || "",
-          photoUrl: data.photoUrl || "",
-          role: data.role || "role",
-          price: data.price || 0,
-          description: data.description || "",
-          status: data.status || "pending",
-          createdAt: data.createdAt || "",
-          lastLogin: data.lastLogin || "",
-          dailySchedules: data.dailySchedules || {},
-        });
+  // PERBAIKAN USEEFFECT - Ganti kedua useEffect yang ada dengan yang ini
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+
+            // Cek role dan redirect sesuai
+            if (userData.role === "doctor") {
+              setUser(currentUser);
+
+              // Fetch data doctor dan semua data terkait
+              await fetchDoctorData(currentUser.uid);
+              await fetchAllData(currentUser.uid);
+            } else if (userData.role === "user") {
+              router.push("/dashboard/patient");
+              return; // Penting: return agar tidak lanjut eksekusi
+            } else if (userData.role === "admin") {
+              router.push("/dashboard/admin");
+              return; // Penting: return agar tidak lanjut eksekusi
+            } else {
+              // Role tidak dikenal, redirect ke home
+              router.push("/");
+              return;
+            }
+          } else {
+            // User document tidak ada, redirect ke home
+            router.push("/");
+            return;
+          }
+        } catch (err) {
+          console.error("Error checking user role:", err);
+          router.push("/sign-in-doctor");
+          return;
+        }
+      } else {
+        // User tidak login, redirect ke sign-in
+        router.push("/sign-in-doctor");
       }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]); // Hapus fetchAllData dari dependency
+
+  // PERBAIKAN FETCHALLDATA - Tambahkan validasi uid
+  const fetchAllData = async (uid) => {
+    // Validasi uid terlebih dahulu
+    if (!uid) {
+      console.error("fetchAllData called without uid");
+      return;
+    }
+
+    try {
+      const [appointmentsData, schedulesData, paymentsData] = await Promise.all(
+        [fetchAppointments(uid), fetchSchedules(uid), fetchPayments(uid)]
+      );
+
+      // PERBAIKAN: Hilangkan setUsers(usersData) karena usersData tidak terdefinisi
+      setAppointments(appointmentsData);
+      setSchedules(schedulesData);
+      setPayments(paymentsData);
     } catch (error) {
-      console.error("Error fetching doctor data:", error);
+      console.error("Error fetching data:", error);
     }
   };
 
+  // PERBAIKAN UNTUK SEMUA FUNGSI FETCH - Tambahkan validasi uid
   const fetchAppointments = async (uid) => {
+    // Validasi uid
+    if (!uid) {
+      console.error("fetchAppointments called without uid");
+      return [];
+    }
+
     try {
       const q = query(
         collection(db, "appointments"),
@@ -189,8 +238,13 @@ export default function DoctorDashboard() {
           patientAge,
           date:
             appointmentData.date?.toDate?.() ||
-            new Date(appointmentData.date || Date.now()),
-          time: appointmentData.appointmentTime || "N/A",
+            new Date(
+              appointmentData.appointmentDate ||
+                appointmentData.date ||
+                Date.now()
+            ),
+          time:
+            appointmentData.appointmentTime || appointmentData.time || "N/A",
           complaint: appointmentData.complaint || "",
           status: appointmentData.status || "pending",
           createdAt:
@@ -208,6 +262,12 @@ export default function DoctorDashboard() {
   };
 
   const fetchSchedules = async (uid) => {
+    // Validasi uid
+    if (!uid) {
+      console.error("fetchSchedules called without uid");
+      return [];
+    }
+
     try {
       const q = query(
         collection(db, "schedules"),
@@ -229,6 +289,12 @@ export default function DoctorDashboard() {
   };
 
   const fetchPayments = async (uid) => {
+    // Validasi uid
+    if (!uid) {
+      console.error("fetchPayments called without uid");
+      return [];
+    }
+
     try {
       // Cari payments berdasarkan appointmentId yang terkait dengan doctor
       const appointmentsQuery = query(
@@ -282,17 +348,211 @@ export default function DoctorDashboard() {
     }
   };
 
-  const fetchAllData = async (uid) => {
+  const fetchDoctorData = async (uid) => {
+    // Validasi uid
+    if (!uid) {
+      console.error("fetchDoctorData called without uid");
+      return;
+    }
+
     try {
-      const [appointmentsData, schedulesData, paymentsData] = await Promise.all(
-        [fetchAppointments(uid), fetchSchedules(uid), fetchPayments(uid)]
+      const userDoc = await getDoc(doc(db, "users", uid));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setDoctorData({
+          uid: uid,
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          specialization: data.specialization || "",
+          gender: data.gender || "",
+          birthDate: data.birthDate || "",
+          licenseNumber: data.licenseNumber || "",
+          photoUrl: data.photoUrl || "",
+          role: data.role || "doctor",
+          price: data.price || 0,
+          description: data.description || "",
+          status: data.status || "pending",
+          createdAt: data.createdAt || "",
+          lastLogin: data.lastLogin || "",
+          dailySchedules: data.dailySchedules || {},
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching doctor data:", error);
+    }
+  };
+
+  // PERBAIKAN FETCHCHATSFORDOCTOR - Tambahkan validasi doctorId
+  const fetchChatsForDoctor = async (doctorId) => {
+    // Validasi doctorId
+    if (!doctorId) {
+      console.error("fetchChatsForDoctor called without doctorId");
+      return [];
+    }
+
+    try {
+      console.log("🔥 Fetching chats for doctor:", doctorId);
+
+      // Query appointments - sama seperti patient tapi ganti doctorId
+      const appointmentsQuery = query(
+        collection(db, "appointments"),
+        where("doctorId", "==", doctorId)
       );
 
-      setAppointments(appointmentsData);
-      setSchedules(schedulesData);
-      setPayments(paymentsData);
+      const appointmentsSnapshot = await getDocs(appointmentsQuery);
+      console.log("📋 Found appointments:", appointmentsSnapshot.docs.length);
+
+      const chats = await Promise.all(
+        appointmentsSnapshot.docs.map(async (appointmentDoc) => {
+          const appointmentData = appointmentDoc.data();
+          console.log(
+            "📝 Processing appointment:",
+            appointmentDoc.id,
+            appointmentData
+          );
+
+          // Hanya tampilkan confirmed appointments atau yang sudah ada chat
+          if (appointmentData.status !== "confirmed") {
+            const chatQuery = query(
+              collection(db, "chats"),
+              where("appointmentId", "==", appointmentDoc.id),
+              limit(1)
+            );
+            const chatSnapshot = await getDocs(chatQuery);
+            if (chatSnapshot.empty) {
+              console.log(
+                "⏭️ Skipping non-confirmed appointment:",
+                appointmentDoc.id
+              );
+              return null;
+            }
+          }
+
+          // Check atau buat chat document
+          const chatQuery = query(
+            collection(db, "chats"),
+            where("appointmentId", "==", appointmentDoc.id),
+            limit(1)
+          );
+
+          const chatSnapshot = await getDocs(chatQuery);
+          let chatData = null;
+          let chatId = null;
+
+          if (!chatSnapshot.empty) {
+            chatData = chatSnapshot.docs[0].data();
+            chatId = chatSnapshot.docs[0].id;
+            console.log("💬 Found existing chat:", chatId);
+          } else {
+            // Buat chat baru jika appointment confirmed
+            if (appointmentData.status === "confirmed") {
+              console.log(
+                "➕ Creating new chat for appointment:",
+                appointmentDoc.id
+              );
+              const newChatRef = await addDoc(collection(db, "chats"), {
+                appointmentId: appointmentDoc.id,
+                patientId: appointmentData.patientId,
+                doctorId: appointmentData.doctorId,
+                status: "pending",
+                messages: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                appointmentDate: appointmentData.appointmentDate,
+                appointmentTime: appointmentData.appointmentTime,
+                paymentStatus: appointmentData.paymentStatus || "pending",
+                price: appointmentData.price || 0,
+              });
+
+              chatId = newChatRef.id;
+              chatData = {
+                appointmentId: appointmentDoc.id,
+                patientId: appointmentData.patientId,
+                doctorId: appointmentData.doctorId,
+                status: "pending",
+                messages: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                appointmentDate: appointmentData.appointmentDate,
+                appointmentTime: appointmentData.appointmentTime,
+                paymentStatus: appointmentData.paymentStatus || "pending",
+                price: appointmentData.price || 0,
+              };
+            } else {
+              console.log(
+                "⏭️ Skipping non-confirmed appointment:",
+                appointmentDoc.id
+              );
+              return null;
+            }
+          }
+
+          // Format appointment date
+          let formattedAppointmentDate = "N/A";
+          if (appointmentData.appointmentDate) {
+            try {
+              const dateObj = new Date(appointmentData.appointmentDate);
+              formattedAppointmentDate = dateObj.toLocaleDateString("id-ID", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              });
+            } catch (error) {
+              console.error("Error formatting date:", error);
+              formattedAppointmentDate = appointmentData.appointmentDate;
+            }
+          }
+
+          const result = {
+            id: chatId,
+            ...chatData,
+            appointmentId: appointmentDoc.id,
+            appointmentDate: appointmentData.appointmentDate,
+            appointmentTime: appointmentData.appointmentTime,
+            patientName: appointmentData.patientName || "Unknown Patient",
+            patientEmail: appointmentData.patientEmail,
+            patientPhone: appointmentData.patientPhone,
+            formattedAppointmentDate,
+            formattedAppointmentTime: appointmentData.appointmentTime,
+            complaint: appointmentData.complaint,
+            appointmentStatus: appointmentData.status,
+            paymentStatus: appointmentData.paymentStatus || "pending",
+            price: appointmentData.price || 0,
+            priceDisplay: appointmentData.priceDisplay || "Rp 0",
+            paymentMethod: appointmentData.paymentMethod,
+          };
+
+          console.log("✅ Created chat object for:", result.patientName);
+          return result;
+        })
+      );
+
+      // Filter dan sort
+      const validChats = chats.filter((chat) => chat !== null);
+      console.log("🎯 Valid chats:", validChats.length);
+
+      validChats.sort((a, b) => {
+        try {
+          const dateA = new Date(
+            `${a.appointmentDate}T${a.appointmentTime}:00`
+          );
+          const dateB = new Date(
+            `${b.appointmentDate}T${b.appointmentTime}:00`
+          );
+          return dateB - dateA;
+        } catch (error) {
+          console.error("Error sorting chats:", error);
+          return 0;
+        }
+      });
+
+      console.log("🎉 Fetch completed successfully!");
+      return validChats;
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("❌ Error fetching chats:", error);
+      throw error;
     }
   };
 
@@ -1050,34 +1310,6 @@ export default function DoctorDashboard() {
     return () => unsubscribe();
   }, [selectedChat]);
 
-  const fetchChatsForDoctor = async (doctorId) => {
-    try {
-      // Implementasi sesuai dengan backend Anda
-      // Contoh menggunakan Firebase Firestore:
-      const chatsRef = collection(db, "chats");
-      const q = query(chatsRef, where("doctorId", "==", doctorId));
-      const querySnapshot = await getDocs(q);
-
-      const chats = [];
-      querySnapshot.forEach((doc) => {
-        chats.push({
-          id: doc.id,
-          ...doc.data(),
-          formattedAppointmentDate: doc.data().appointmentDate
-            ? new Date(doc.data().appointmentDate).toLocaleDateString()
-            : "N/A",
-          formattedAppointmentTime: doc.data().appointmentTime || "N/A",
-          complaint: doc.data().complaint,
-        });
-      });
-
-      return chats;
-    } catch (error) {
-      console.error("Error fetching chats:", error);
-      throw error;
-    }
-  };
-
   const ChatsView = () => {
     const [activeChats, setActiveChats] = useState([]);
     const [selectedChat, setSelectedChat] = useState(null);
@@ -1090,12 +1322,18 @@ export default function DoctorDashboard() {
     const [chatExpiryTimer, setChatExpiryTimer] = useState(null);
     const chatFileInputRef = useRef(null);
 
-    // Helper functions - sama seperti sebelumnya
+    // Fungsi untuk mengecek apakah chat bisa dimulai
     const canStartChat = (chat) => {
+      // Cek status pembayaran pertama kali - TAMBAHAN UNTUK DOKTER
+      if (chat.paymentStatus !== "completed") {
+        return false;
+      }
+
       if (!chat.appointmentId) return false;
       const appointmentDate = chat.appointmentDate;
       const appointmentTime = chat.appointmentTime;
       if (!appointmentDate || !appointmentTime) return false;
+
       const appointmentDateTime = new Date(
         `${appointmentDate}T${appointmentTime}:00`
       );
@@ -1103,11 +1341,13 @@ export default function DoctorDashboard() {
       return now >= appointmentDateTime;
     };
 
+    // Fungsi untuk mengecek apakah chat sudah expired
     const isChatExpired = (chat) => {
       if (!chat.appointmentId) return false;
       const appointmentDate = chat.appointmentDate;
       const appointmentTime = chat.appointmentTime;
       if (!appointmentDate || !appointmentTime) return true;
+
       const appointmentDateTime = new Date(
         `${appointmentDate}T${appointmentTime}:00`
       );
@@ -1118,17 +1358,25 @@ export default function DoctorDashboard() {
       return now > expiryTime;
     };
 
+    // Fungsi untuk mendapatkan status chat - DIPERBAHARUI
     const getChatStatus = (chat) => {
-      if (!canStartChat(chat)) {
-        return "not_started";
-      } else if (isChatExpired(chat)) {
-        return "expired";
-      } else {
-        return "active";
+      // Prioritas pertama: cek pembayaran
+      if (chat.paymentStatus !== "completed") {
+        return "unpaid";
       }
+
+      if (!canStartChat(chat)) return "not_started";
+      if (isChatExpired(chat)) return "expired";
+      return "active";
     };
 
+    // Fungsi untuk menghitung waktu tersisa - DIPERBAHARUI
     const getTimeRemaining = (chat) => {
+      // Jika belum bayar, tampilkan info pembayaran
+      if (chat.paymentStatus !== "completed") {
+        return "Waiting for payment";
+      }
+
       if (!chat.appointmentDate || !chat.appointmentTime) return null;
       const appointmentDateTime = new Date(
         `${chat.appointmentDate}T${chat.appointmentTime}:00`
@@ -1152,9 +1400,12 @@ export default function DoctorDashboard() {
       }
     };
 
+    // Fungsi untuk mendapatkan deskripsi status chat - DIPERBAHARUI
     const getChatStatusDescription = (chat) => {
       const status = getChatStatus(chat);
       switch (status) {
+        case "unpaid":
+          return "Waiting for patient to complete payment before chat can begin";
         case "not_started":
           return "Chat will be available at appointment time";
         case "active":
@@ -1175,9 +1426,16 @@ export default function DoctorDashboard() {
       return `${hour12}:${minutes} ${ampm}`;
     };
 
+    // Fungsi untuk menampilkan badge status - DIPERBAHARUI
     const getStatusBadge = (chat) => {
       const status = getChatStatus(chat);
       switch (status) {
+        case "unpaid":
+          return (
+            <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+              Unpaid
+            </span>
+          );
         case "not_started":
           return (
             <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
@@ -1201,12 +1459,12 @@ export default function DoctorDashboard() {
       }
     };
 
-    // INI DIA FUNCTION YANG WORKING! 🔥
+    // Fungsi fetch chats untuk dokter - DIPERBAHARUI dengan payment status
     const fetchChatsForDoctor = async (doctorId) => {
       try {
         console.log("🔥 Fetching chats for doctor:", doctorId);
 
-        // Query appointments - SAMA seperti patient tapi ganti doctorId
+        // Query appointments - sama seperti patient tapi ganti doctorId
         const appointmentsQuery = query(
           collection(db, "appointments"),
           where("doctorId", "==", doctorId)
@@ -1273,6 +1531,8 @@ export default function DoctorDashboard() {
                   updatedAt: new Date(),
                   appointmentDate: appointmentData.appointmentDate,
                   appointmentTime: appointmentData.appointmentTime,
+                  paymentStatus: appointmentData.paymentStatus || "pending", // TAMBAHAN
+                  price: appointmentData.price || 0, // TAMBAHAN
                 });
 
                 chatId = newChatRef.id;
@@ -1286,6 +1546,8 @@ export default function DoctorDashboard() {
                   updatedAt: new Date(),
                   appointmentDate: appointmentData.appointmentDate,
                   appointmentTime: appointmentData.appointmentTime,
+                  paymentStatus: appointmentData.paymentStatus || "pending", // TAMBAHAN
+                  price: appointmentData.price || 0, // TAMBAHAN
                 };
               } else {
                 console.log(
@@ -1321,9 +1583,10 @@ export default function DoctorDashboard() {
               formattedAppointmentTime: appointmentData.appointmentTime,
               complaint: appointmentData.complaint,
               appointmentStatus: appointmentData.status,
-              paymentStatus: appointmentData.paymentStatus,
-              priceDisplay: appointmentData.priceDisplay,
-              paymentMethod: appointmentData.paymentMethod,
+              paymentStatus: appointmentData.paymentStatus || "pending", // TAMBAHAN
+              price: appointmentData.price || 0, // TAMBAHAN
+              priceDisplay: appointmentData.priceDisplay || "Rp 0", // TAMBAHAN
+              paymentMethod: appointmentData.paymentMethod, // TAMBAHAN
             };
 
             console.log("✅ Created chat object for:", result.patientName);
@@ -1383,7 +1646,7 @@ export default function DoctorDashboard() {
       return null;
     }, []);
 
-    // ✅ FETCH FUNCTION YANG STABLE
+    // Fetch function yang stable
     const fetchChats = useCallback(async () => {
       if (!doctorData?.uid) return;
 
@@ -1403,13 +1666,14 @@ export default function DoctorDashboard() {
       } finally {
         setLoadingChats(false);
       }
-    }, [doctorData?.uid]); // ❌ HAPUS selectedChat dari dependency!
+    }, [doctorData?.uid]);
+
     // Initial fetch
     useEffect(() => {
       fetchChats();
     }, [fetchChats]);
 
-    // ✅ SETUP TIMER SAAT selectedChat BERUBAH
+    // Setup timer saat selectedChat berubah
     useEffect(() => {
       // Clear existing timer first
       if (chatExpiryTimer) {
@@ -1429,9 +1693,9 @@ export default function DoctorDashboard() {
           clearTimeout(chatExpiryTimer);
         }
       };
-    }, [selectedChat?.id]); // ✅ Hanya depend pada selectedChat.id
+    }, [selectedChat?.id, setupChatExpiryTimer]);
 
-    // Listen to selected chat messages - gunakan useCallback untuk stability
+    // Listen to selected chat messages
     useEffect(() => {
       if (!selectedChat?.id) {
         setMessages([]);
@@ -1444,6 +1708,8 @@ export default function DoctorDashboard() {
           if (docSnap.exists()) {
             const data = docSnap.data();
             setMessages(data.messages || []);
+            // Update selectedChat dengan data terbaru termasuk paymentStatus
+            setSelectedChat((prev) => (prev ? { ...prev, ...data } : null));
           }
         },
         (err) => {
@@ -1452,15 +1718,19 @@ export default function DoctorDashboard() {
       );
 
       return () => unsubscribe();
-    }, [selectedChat?.id]); // Hanya depend pada selectedChat.id, bukan selectedChat object
+    }, [selectedChat?.id]);
 
-    // Handle send message - gunakan useCallback
+    // Handle send message - DIPERBAHARUI dengan payment check
     const handleSendMessage = useCallback(async () => {
       if ((!newMessage.trim() && !imageUpload) || !selectedChat) return;
 
       const chatStatus = getChatStatus(selectedChat);
       if (chatStatus !== "active") {
-        alert("Chat is not available at this time.");
+        if (chatStatus === "unpaid") {
+          alert("Chat is not available until patient completes payment.");
+        } else {
+          alert("Chat is not available at this time.");
+        }
         return;
       }
 
@@ -1514,6 +1784,7 @@ export default function DoctorDashboard() {
         setIsSending(false);
       }
     }, [newMessage, imageUpload, selectedChat, doctorData]);
+
     // Handle image upload
     const handleImageUpload = useCallback((e) => {
       const file = e.target.files[0];
@@ -1535,12 +1806,12 @@ export default function DoctorDashboard() {
       chatFileInputRef.current?.click();
     }, []);
 
-    // Handle chat selection - gunakan useCallback
+    // Handle chat selection
     const handleChatSelect = useCallback((chat) => {
       setSelectedChat(chat);
     }, []);
 
-    // Handle key press - gunakan useCallback
+    // Handle key press
     const handleKeyPress = useCallback(
       (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -1594,7 +1865,7 @@ export default function DoctorDashboard() {
 
                     return (
                       <div
-                        key={`chat-${chat.id}`} // Pastikan key stabil
+                        key={`chat-${chat.id}`}
                         onClick={() => handleChatSelect(chat)}
                         className={`p-3 rounded-lg cursor-pointer border ${
                           selectedChat?.id === chat.id
@@ -1620,6 +1891,19 @@ export default function DoctorDashboard() {
                           <p className="font-medium mt-1">
                             {getTimeRemaining(chat)}
                           </p>
+                        </div>
+
+                        {/* TAMBAHAN: Info pembayaran di sidebar */}
+                        <div className="mt-2 text-xs">
+                          {chat.paymentStatus === "completed" ? (
+                            <span className="text-green-600">
+                              ✓ Paid ({chat.priceDisplay})
+                            </span>
+                          ) : (
+                            <span className="text-red-600">
+                              ⚠ Payment pending ({chat.priceDisplay})
+                            </span>
+                          )}
                         </div>
 
                         {hasMessages && (
@@ -1677,15 +1961,77 @@ export default function DoctorDashboard() {
                       </div>
                     )}
 
-                    <div className="mt-3 p-2 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-blue-700">
+                    {/* TAMBAHAN: Info pembayaran detail */}
+                    <div className="mt-2 p-2 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Payment Status:</span>{" "}
+                        {selectedChat.paymentStatus === "completed" ? (
+                          <span className="text-green-600">
+                            Completed ({selectedChat.priceDisplay})
+                          </span>
+                        ) : (
+                          <span className="text-red-600">
+                            Pending ({selectedChat.priceDisplay})
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Info status chat - DIPERBAHARUI */}
+                    <div
+                      className={`mt-3 p-2 rounded-lg ${
+                        getChatStatus(selectedChat) === "unpaid"
+                          ? "bg-red-50 text-red-700"
+                          : "bg-blue-50 text-blue-700"
+                      }`}
+                    >
+                      <p className="text-sm">
                         {getChatStatusDescription(selectedChat)}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex-1 p-4 overflow-y-auto">
-                    {getChatStatus(selectedChat) === "not_started" ? (
+                    {/* TAMBAHAN: Tampilan khusus jika belum bayar */}
+                    {getChatStatus(selectedChat) === "unpaid" ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center">
+                        <div className="mb-4">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-12 w-12 text-red-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-800 mb-2">
+                          Payment Pending
+                        </h3>
+                        <p className="text-gray-600 mb-4">
+                          Patient has not completed payment yet. Chat will be
+                          available once payment is confirmed.
+                        </p>
+                        <div className="bg-gray-100 p-3 rounded-lg">
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Amount:</span>{" "}
+                            {selectedChat.priceDisplay}
+                          </p>
+                          {selectedChat.paymentMethod && (
+                            <p className="text-sm text-gray-600">
+                              <span className="font-medium">Method:</span>{" "}
+                              {selectedChat.paymentMethod}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ) : getChatStatus(selectedChat) === "not_started" ? (
                       <div className="h-full flex items-center justify-center text-center">
                         <div>
                           <div className="mb-4">
@@ -1715,7 +2061,7 @@ export default function DoctorDashboard() {
                           <div
                             key={`msg-${index}-${
                               msg.timestamp?.seconds || index
-                            }`} // Key yang lebih stabil
+                            }`}
                             className={`flex ${
                               msg.senderId === doctorData.uid
                                 ? "justify-end"
@@ -1765,6 +2111,7 @@ export default function DoctorDashboard() {
                     )}
                   </div>
 
+                  {/* Input area - hanya tampil jika chat aktif */}
                   {getChatStatus(selectedChat) === "active" && (
                     <div className="p-4 border-t border-gray-200">
                       <div className="flex gap-2">
@@ -1824,6 +2171,7 @@ export default function DoctorDashboard() {
                     </div>
                   )}
 
+                  {/* Footer untuk chat yang sudah expired */}
                   {getChatStatus(selectedChat) === "expired" && (
                     <div className="p-4 border-t border-gray-200 bg-gray-50">
                       <div className="flex items-center justify-center gap-2">
@@ -2166,614 +2514,677 @@ export default function DoctorDashboard() {
     </div>
   );
 
-const PaymentsView = () => {
-  // State for withdrawals
-  const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [selectedBank, setSelectedBank] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [accountName, setAccountName] = useState("");
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
-  const [withdrawError, setWithdrawError] = useState("");
-  const [withdrawSuccess, setWithdrawSuccess] = useState("");
-  const [withdrawalHistory, setWithdrawalHistory] = useState([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const PaymentsView = () => {
+    // State for withdrawals
+    const [withdrawAmount, setWithdrawAmount] = useState("");
+    const [selectedBank, setSelectedBank] = useState("");
+    const [accountNumber, setAccountNumber] = useState("");
+    const [accountName, setAccountName] = useState("");
+    const [isWithdrawing, setIsWithdrawing] = useState(false);
+    const [withdrawError, setWithdrawError] = useState("");
+    const [withdrawSuccess, setWithdrawSuccess] = useState("");
+    const [withdrawalHistory, setWithdrawalHistory] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  // Calculate stats
-  const completedPayments = payments.filter(p => p.status === "completed");
-  const pendingPayments = payments.filter(p => p.status === "pending");
-  
-  // Calculate withdrawal amounts by status
-  const completedWithdrawals = withdrawalHistory.filter(w => w.status === "completed");
-  const pendingWithdrawals = withdrawalHistory.filter(w => w.status === "pending");
-  const rejectedWithdrawals = withdrawalHistory.filter(w => w.status === "rejected");
-  
-  // Calculate total amounts
-  const totalEarnings = completedPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const totalCompletedWithdrawals = completedWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
-  const totalPendingWithdrawals = pendingWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0);
-  
-  // Calculate balances
-  const actualBalance = totalEarnings - totalCompletedWithdrawals; // Money actually in account
-  const availableForWithdrawal = totalEarnings - totalCompletedWithdrawals - totalPendingWithdrawals; // Can be withdrawn
-  const reservedBalance = totalPendingWithdrawals; // Reserved for pending withdrawals
+    // Calculate stats
+    const completedPayments = payments.filter((p) => p.status === "completed");
+    const pendingPayments = payments.filter((p) => p.status === "pending");
 
-  // Format currency
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-    }).format(amount || 0);
-  };
+    // Calculate withdrawal amounts by status
+    const completedWithdrawals = withdrawalHistory.filter(
+      (w) => w.status === "completed"
+    );
+    const pendingWithdrawals = withdrawalHistory.filter(
+      (w) => w.status === "pending"
+    );
+    const rejectedWithdrawals = withdrawalHistory.filter(
+      (w) => w.status === "rejected"
+    );
 
-  // Format date
-  const formatDate = (date) => {
-    if (!date) return "N/A";
-    const d = date?.toDate?.() || new Date(date);
-    return d.toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
+    // Calculate total amounts
+    const totalEarnings = completedPayments.reduce(
+      (sum, p) => sum + (p.amount || 0),
+      0
+    );
+    const totalCompletedWithdrawals = completedWithdrawals.reduce(
+      (sum, w) => sum + (w.amount || 0),
+      0
+    );
+    const totalPendingWithdrawals = pendingWithdrawals.reduce(
+      (sum, w) => sum + (w.amount || 0),
+      0
+    );
 
-  // Handle withdrawal submission
-  const handleWithdraw = async () => {
-    // Clear previous messages
-    setWithdrawError("");
-    setWithdrawSuccess("");
+    // Calculate balances
+    const actualBalance = totalEarnings - totalCompletedWithdrawals; // Money actually in account
+    const availableForWithdrawal =
+      totalEarnings - totalCompletedWithdrawals - totalPendingWithdrawals; // Can be withdrawn
+    const reservedBalance = totalPendingWithdrawals; // Reserved for pending withdrawals
 
-    // Validation
-    if (!withdrawAmount || !selectedBank || !accountNumber || !accountName) {
-      setWithdrawError("Harap isi semua field");
-      return;
-    }
+    // Format currency
+    const formatCurrency = (amount) => {
+      return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+      }).format(amount || 0);
+    };
 
-    const amount = Number(withdrawAmount);
-    if (isNaN(amount) || amount <= 0) {
-      setWithdrawError("Jumlah tidak valid");
-      return;
-    }
-
-    if (amount < 100000) {
-      setWithdrawError("Minimal penarikan Rp 100.000");
-      return;
-    }
-
-    if (amount > availableForWithdrawal) {
-      setWithdrawError(`Saldo tidak mencukupi. Saldo tersedia: ${formatCurrency(availableForWithdrawal)}`);
-      return;
-    }
-
-    setIsWithdrawing(true);
-
-    try {
-      // Add withdrawal record
-      await addDoc(collection(db, "withdrawals"), {
-        doctorId: doctorData.uid,
-        doctorName: doctorData.name,
-        amount: amount,
-        bank: selectedBank,
-        accountNumber: accountNumber,
-        accountName: accountName,
-        status: "pending",
-        createdAt: new Date(),
+    // Format date
+    const formatDate = (date) => {
+      if (!date) return "N/A";
+      const d = date?.toDate?.() || new Date(date);
+      return d.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
       });
+    };
 
-      setWithdrawSuccess(`Penarikan sebesar ${formatCurrency(amount)} berhasil diajukan! Saldo tersedia berkurang menjadi ${formatCurrency(availableForWithdrawal - amount)}`);
-      
-      // Clear form
-      setWithdrawAmount("");
-      setSelectedBank("");
-      setAccountNumber("");
-      setAccountName("");
+    // Handle withdrawal submission
+    const handleWithdraw = async () => {
+      // Clear previous messages
+      setWithdrawError("");
+      setWithdrawSuccess("");
 
-      // Refresh withdrawal history
-      await fetchWithdrawalHistory();
-    } catch (error) {
-      console.error("Gagal melakukan penarikan:", error);
-      setWithdrawError("Gagal melakukan penarikan. Silakan coba lagi.");
-    } finally {
-      setIsWithdrawing(false);
-    }
-  };
+      // Validation
+      if (!withdrawAmount || !selectedBank || !accountNumber || !accountName) {
+        setWithdrawError("Harap isi semua field");
+        return;
+      }
 
-  // Fetch withdrawal history
-  const fetchWithdrawalHistory = useCallback(async () => {
-    if (!doctorData?.uid) return;
+      const amount = Number(withdrawAmount);
+      if (isNaN(amount) || amount <= 0) {
+        setWithdrawError("Jumlah tidak valid");
+        return;
+      }
 
-    setIsLoadingHistory(true);
-    try {
-      // Query tanpa orderBy untuk menghindari composite index requirement
-      const q = query(
-        collection(db, "withdrawals"),
-        where("doctorId", "==", doctorData.uid)
-      );
-      const snapshot = await getDocs(q);
-      
-      const history = snapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate(),
-        }))
-        // Sort di client side instead of server side
-        .sort((a, b) => {
-          const dateA = a.createdAt || new Date(0);
-          const dateB = b.createdAt || new Date(0);
-          return dateB - dateA; // Descending order
+      if (amount < 100000) {
+        setWithdrawError("Minimal penarikan Rp 100.000");
+        return;
+      }
+
+      if (amount > availableForWithdrawal) {
+        setWithdrawError(
+          `Saldo tidak mencukupi. Saldo tersedia: ${formatCurrency(
+            availableForWithdrawal
+          )}`
+        );
+        return;
+      }
+
+      setIsWithdrawing(true);
+
+      try {
+        // Add withdrawal record
+        await addDoc(collection(db, "withdrawals"), {
+          doctorId: doctorData.uid,
+          doctorName: doctorData.name,
+          amount: amount,
+          bank: selectedBank,
+          accountNumber: accountNumber,
+          accountName: accountName,
+          status: "pending",
+          createdAt: new Date(),
         });
 
-      setWithdrawalHistory(history);
-    } catch (error) {
-      console.error("Gagal mengambil riwayat penarikan:", error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  }, [doctorData?.uid]);
+        setWithdrawSuccess(
+          `Penarikan sebesar ${formatCurrency(
+            amount
+          )} berhasil diajukan! Saldo tersedia berkurang menjadi ${formatCurrency(
+            availableForWithdrawal - amount
+          )}`
+        );
 
-  // Load withdrawal history on mount
-  useEffect(() => {
-    fetchWithdrawalHistory();
-  }, [fetchWithdrawalHistory]);
+        // Clear form
+        setWithdrawAmount("");
+        setSelectedBank("");
+        setAccountNumber("");
+        setAccountName("");
 
-  // Get bank name
-  const getBankName = (bankCode) => {
-    const bankNames = {
-      "bca": "BCA",
-      "mandiri": "Mandiri", 
-      "bri": "BRI",
-      "bni": "BNI",
-      "cimb": "CIMB Niaga",
-      "danamon": "Danamon"
+        // Refresh withdrawal history
+        await fetchWithdrawalHistory();
+      } catch (error) {
+        console.error("Gagal melakukan penarikan:", error);
+        setWithdrawError("Gagal melakukan penarikan. Silakan coba lagi.");
+      } finally {
+        setIsWithdrawing(false);
+      }
     };
-    return bankNames[bankCode] || bankCode.toUpperCase();
-  };
 
-  // Get withdrawal status info
-  const getWithdrawalStatus = (status) => {
-    const statusMap = {
-      "pending": { text: "Diproses", color: "bg-yellow-100 text-yellow-800" },
-      "completed": { text: "Berhasil", color: "bg-green-100 text-green-800" },
-      "rejected": { text: "Ditolak", color: "bg-red-100 text-red-800" },
-      "cancelled": { text: "Dibatalkan", color: "bg-gray-100 text-gray-800" }
+    // Fetch withdrawal history
+    const fetchWithdrawalHistory = useCallback(async () => {
+      if (!doctorData?.uid) return;
+
+      setIsLoadingHistory(true);
+      try {
+        // Query tanpa orderBy untuk menghindari composite index requirement
+        const q = query(
+          collection(db, "withdrawals"),
+          where("doctorId", "==", doctorData.uid)
+        );
+        const snapshot = await getDocs(q);
+
+        const history = snapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+            createdAt: doc.data().createdAt?.toDate(),
+          }))
+          // Sort di client side instead of server side
+          .sort((a, b) => {
+            const dateA = a.createdAt || new Date(0);
+            const dateB = b.createdAt || new Date(0);
+            return dateB - dateA; // Descending order
+          });
+
+        setWithdrawalHistory(history);
+      } catch (error) {
+        console.error("Gagal mengambil riwayat penarikan:", error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    }, [doctorData?.uid]);
+
+    // Load withdrawal history on mount
+    useEffect(() => {
+      fetchWithdrawalHistory();
+    }, [fetchWithdrawalHistory]);
+
+    // Get bank name
+    const getBankName = (bankCode) => {
+      const bankNames = {
+        bca: "BCA",
+        mandiri: "Mandiri",
+        bri: "BRI",
+        bni: "BNI",
+        cimb: "CIMB Niaga",
+        danamon: "Danamon",
+      };
+      return bankNames[bankCode] || bankCode.toUpperCase();
     };
-    return statusMap[status] || { text: status, color: "bg-gray-100 text-gray-800" };
-  };
 
-  // Get payment status display
-  const getPaymentStatus = (status) => {
-    const statusMap = {
-      "completed": "Selesai",
-      "pending": "Pending",
-      "failed": "Gagal",
-      "cancelled": "Dibatalkan"
+    // Get withdrawal status info
+    const getWithdrawalStatus = (status) => {
+      const statusMap = {
+        pending: { text: "Diproses", color: "bg-yellow-100 text-yellow-800" },
+        completed: { text: "Berhasil", color: "bg-green-100 text-green-800" },
+        rejected: { text: "Ditolak", color: "bg-red-100 text-red-800" },
+        cancelled: { text: "Dibatalkan", color: "bg-gray-100 text-gray-800" },
+      };
+      return (
+        statusMap[status] || {
+          text: status,
+          color: "bg-gray-100 text-gray-800",
+        }
+      );
     };
-    return statusMap[status] || status;
-  };
 
-  return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Earnings */}
-        <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Total Pendapatan</p>
-              <p className="text-2xl font-bold text-green-600">
+    // Get payment status display
+    const getPaymentStatus = (status) => {
+      const statusMap = {
+        completed: "Selesai",
+        pending: "Pending",
+        failed: "Gagal",
+        cancelled: "Dibatalkan",
+      };
+      return statusMap[status] || status;
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Earnings */}
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">
+                  Total Pendapatan
+                </p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(totalEarnings)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {completedPayments.length} pembayaran selesai
+                </p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-full">
+                <CurrencyDollar size={24} className="text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Available Balance for Withdrawal */}
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">
+                  Dapat Ditarik
+                </p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {formatCurrency(availableForWithdrawal)}
+                </p>
+                {reservedBalance > 0 && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    {formatCurrency(reservedBalance)} sedang diproses
+                  </p>
+                )}
+              </div>
+              <div className="p-3 bg-blue-100 rounded-full">
+                <CurrencyDollar size={24} className="text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Actual Balance (Money in account) */}
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">
+                  Saldo Aktual
+                </p>
+                <p className="text-2xl font-bold text-purple-600">
+                  {formatCurrency(actualBalance)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">Uang di akun Anda</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-full">
+                <Receipt size={24} className="text-purple-600" />
+              </div>
+            </div>
+          </div>
+
+          {/* Pending Payments */}
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">
+                  Pembayaran Pending
+                </p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {pendingPayments.length}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {formatCurrency(
+                    pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-yellow-100 rounded-full">
+                <Clock size={24} className="text-yellow-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Balance Summary */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-100">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            Ringkasan Saldo
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <p className="text-sm text-gray-600">Total Pendapatan</p>
+              <p className="text-xl font-bold text-green-600">
                 {formatCurrency(totalEarnings)}
               </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {completedPayments.length} pembayaran selesai
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-600">Sudah Ditarik</p>
+              <p className="text-xl font-bold text-red-600">
+                -{formatCurrency(totalCompletedWithdrawals)}
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <CurrencyDollar size={24} className="text-green-600" />
+            <div className="text-center">
+              <p className="text-sm text-gray-600">Sedang Diproses</p>
+              <p className="text-xl font-bold text-yellow-600">
+                -{formatCurrency(totalPendingWithdrawals)}
+              </p>
             </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-blue-200 text-center">
+            <p className="text-sm text-gray-600">
+              Saldo Tersedia untuk Penarikan
+            </p>
+            <p className="text-2xl font-bold text-blue-600">
+              {formatCurrency(availableForWithdrawal)}
+            </p>
           </div>
         </div>
 
-        {/* Available Balance for Withdrawal */}
-        <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Dapat Ditarik</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {formatCurrency(availableForWithdrawal)}
-              </p>
-              {reservedBalance > 0 && (
-                <p className="text-xs text-yellow-600 mt-1">
-                  {formatCurrency(reservedBalance)} sedang diproses
+        {/* Withdrawal Section */}
+        <div className="bg-white rounded-xl shadow border border-gray-100 p-6">
+          <h2 className="text-xl font-semibold mb-6">Penarikan Dana</h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Withdrawal Form */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Jumlah (IDR) *
+                </label>
+                <input
+                  type="number"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Minimum 100.000"
+                  min="100000"
+                  max={availableForWithdrawal}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Maksimal: {formatCurrency(availableForWithdrawal)}
                 </p>
-              )}
-            </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <CurrencyDollar size={24} className="text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Actual Balance (Money in account) */}
-        <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Saldo Aktual</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {formatCurrency(actualBalance)}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                Uang di akun Anda
-              </p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <Receipt size={24} className="text-purple-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Pending Payments */}
-        <div className="bg-white p-6 rounded-xl shadow border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-500 text-sm font-medium">Pembayaran Pending</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {pendingPayments.length}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {formatCurrency(pendingPayments.reduce((sum, p) => sum + (p.amount || 0), 0))}
-              </p>
-            </div>
-            <div className="p-3 bg-yellow-100 rounded-full">
-              <Clock size={24} className="text-yellow-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Balance Summary */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-100">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Ringkasan Saldo</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-600">Total Pendapatan</p>
-            <p className="text-xl font-bold text-green-600">{formatCurrency(totalEarnings)}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-600">Sudah Ditarik</p>
-            <p className="text-xl font-bold text-red-600">-{formatCurrency(totalCompletedWithdrawals)}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-sm text-gray-600">Sedang Diproses</p>
-            <p className="text-xl font-bold text-yellow-600">-{formatCurrency(totalPendingWithdrawals)}</p>
-          </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-blue-200 text-center">
-          <p className="text-sm text-gray-600">Saldo Tersedia untuk Penarikan</p>
-          <p className="text-2xl font-bold text-blue-600">{formatCurrency(availableForWithdrawal)}</p>
-        </div>
-      </div>
-
-      {/* Withdrawal Section */}
-      <div className="bg-white rounded-xl shadow border border-gray-100 p-6">
-        <h2 className="text-xl font-semibold mb-6">Penarikan Dana</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Withdrawal Form */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Jumlah (IDR) *</label>
-              <input
-                type="number"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                placeholder="Minimum 100.000"
-                min="100000"
-                max={availableForWithdrawal}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Maksimal: {formatCurrency(availableForWithdrawal)}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Bank Tujuan *</label>
-              <select
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={selectedBank}
-                onChange={(e) => setSelectedBank(e.target.value)}
-              >
-                <option value="">Pilih Bank</option>
-                <option value="bca">BCA</option>
-                <option value="mandiri">Mandiri</option>
-                <option value="bri">BRI</option>
-                <option value="bni">BNI</option>
-                <option value="cimb">CIMB Niaga</option>
-                <option value="danamon">Danamon</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Nomor Rekening *</label>
-              <input
-                type="text"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={accountNumber}
-                onChange={(e) => setAccountNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="Contoh: 1234567890"
-                maxLength="20"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Nama Pemilik Rekening *</label>
-              <input
-                type="text"
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={accountName}
-                onChange={(e) => setAccountName(e.target.value.toUpperCase())}
-                placeholder="Sesuai buku tabungan"
-                maxLength="50"
-              />
-            </div>
-
-            <button
-              onClick={handleWithdraw}
-              disabled={isWithdrawing || !withdrawAmount || !selectedBank || !accountNumber || !accountName || availableForWithdrawal <= 0}
-              className={`w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium ${
-                isWithdrawing || !withdrawAmount || !selectedBank || !accountNumber || !accountName || availableForWithdrawal <= 0
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-            >
-              {isWithdrawing ? "Memproses..." : "Ajukan Penarikan"}
-            </button>
-
-            {withdrawError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  {withdrawError}
-                </div>
               </div>
-            )}
 
-            {withdrawSuccess && (
-              <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
-                <div className="flex items-start gap-2">
-                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  {withdrawSuccess}
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Bank Tujuan *
+                </label>
+                <select
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedBank}
+                  onChange={(e) => setSelectedBank(e.target.value)}
+                >
+                  <option value="">Pilih Bank</option>
+                  <option value="bca">BCA</option>
+                  <option value="mandiri">Mandiri</option>
+                  <option value="bri">BRI</option>
+                  <option value="bni">BNI</option>
+                  <option value="cimb">CIMB Niaga</option>
+                  <option value="danamon">Danamon</option>
+                </select>
               </div>
-            )}
-          </div>
 
-          {/* Withdrawal Information */}
-          <div className="bg-blue-50 p-6 rounded-lg">
-            <h3 className="font-medium text-lg mb-4">Informasi Penarikan</h3>
-            <ul className="space-y-3 text-sm text-gray-700">
-              <li className="flex items-start gap-2">
-                <span className="mt-1 text-blue-500">•</span>
-                <span>Minimal penarikan Rp 100.000</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-1 text-blue-500">•</span>
-                <span>Proses penarikan 1-2 hari kerja</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-1 text-blue-500">•</span>
-                <span>Pastikan data rekening benar</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-1 text-blue-500">•</span>
-                <span>Bank yang didukung: BCA, Mandiri, BRI, BNI, CIMB, Danamon</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-1 text-blue-500">•</span>
-                <span>Penarikan yang sedang diproses akan mengurangi saldo tersedia</span>
-              </li>
-            </ul>
-
-            <div className="mt-6 pt-4 border-t border-blue-200">
-              <h4 className="font-medium mb-3">Detail Saldo</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Total Pendapatan:</span>
-                  <span className="font-medium text-green-600">{formatCurrency(totalEarnings)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Sudah Ditarik:</span>
-                  <span className="font-medium text-red-600">-{formatCurrency(totalCompletedWithdrawals)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Sedang Diproses:</span>
-                  <span className="font-medium text-yellow-600">-{formatCurrency(totalPendingWithdrawals)}</span>
-                </div>
-                <div className="pt-2 border-t border-blue-200 flex justify-between">
-                  <span className="font-medium text-gray-800">Dapat Ditarik:</span>
-                  <span className="font-bold text-blue-600">{formatCurrency(availableForWithdrawal)}</span>
-                </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Nomor Rekening *
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={accountNumber}
+                  onChange={(e) =>
+                    setAccountNumber(e.target.value.replace(/[^0-9]/g, ""))
+                  }
+                  placeholder="Contoh: 1234567890"
+                  maxLength="20"
+                />
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Payment History */}
-      <div className="bg-white rounded-xl shadow border border-gray-100">
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 rounded-t-xl">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-800">
-              Riwayat Pembayaran
-            </h2>
-            <span className="text-sm text-gray-500">
-              {payments.length} total pembayaran
-            </span>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tanggal
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Pasien
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Jumlah
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {payments.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
-                    <div className="flex flex-col items-center">
-                      <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <p>Belum ada riwayat pembayaran</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                payments
-                  .sort((a, b) => {
-                    const dateA = a.paymentDate?.toDate?.() || a.createdAt?.toDate?.() || new Date(a.paymentDate || a.createdAt);
-                    const dateB = b.paymentDate?.toDate?.() || b.createdAt?.toDate?.() || new Date(b.paymentDate || b.createdAt);
-                    return dateB - dateA;
-                  })
-                  .map((payment) => (
-                    <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(payment.paymentDate || payment.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {payment.patientName || "Pasien Tidak Dikenal"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          ID: {payment.patientId?.slice(-8) || "N/A"}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        {formatCurrency(payment.amount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            payment.status === "completed"
-                              ? "bg-green-100 text-green-800"
-                              : payment.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : payment.status === "failed"
-                              ? "bg-red-100 text-red-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {getPaymentStatus(payment.status)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Nama Pemilik Rekening *
+                </label>
+                <input
+                  type="text"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={accountName}
+                  onChange={(e) => setAccountName(e.target.value.toUpperCase())}
+                  placeholder="Sesuai buku tabungan"
+                  maxLength="50"
+                />
+              </div>
 
-      {/* Withdrawal History */}
-      <div className="bg-white rounded-xl shadow border border-gray-100">
-        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 rounded-t-xl">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-800">
-              Riwayat Penarikan
-            </h2>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-500">
-                {withdrawalHistory.length} total penarikan
-              </span>
               <button
-                onClick={fetchWithdrawalHistory}
-                disabled={isLoadingHistory}
-                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                onClick={handleWithdraw}
+                disabled={
+                  isWithdrawing ||
+                  !withdrawAmount ||
+                  !selectedBank ||
+                  !accountNumber ||
+                  !accountName ||
+                  availableForWithdrawal <= 0
+                }
+                className={`w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium ${
+                  isWithdrawing ||
+                  !withdrawAmount ||
+                  !selectedBank ||
+                  !accountNumber ||
+                  !accountName ||
+                  availableForWithdrawal <= 0
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
               >
-                {isLoadingHistory ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                    Memuat...
-                  </>
-                ) : (
-                  <>
+                {isWithdrawing ? "Memproses..." : "Ajukan Penarikan"}
+              </button>
+
+              {withdrawError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                  <div className="flex items-start gap-2">
                     <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      className="w-4 h-4 mt-0.5 flex-shrink-0"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
                     >
                       <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                        clipRule="evenodd"
                       />
                     </svg>
-                    Segarkan
-                  </>
-                )}
-              </button>
+                    {withdrawError}
+                  </div>
+                </div>
+              )}
+
+              {withdrawSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+                  <div className="flex items-start gap-2">
+                    <svg
+                      className="w-4 h-4 mt-0.5 flex-shrink-0"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    {withdrawSuccess}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Withdrawal Information */}
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <h3 className="font-medium text-lg mb-4">Informasi Penarikan</h3>
+              <ul className="space-y-3 text-sm text-gray-700">
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 text-blue-500">•</span>
+                  <span>Minimal penarikan Rp 100.000</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 text-blue-500">•</span>
+                  <span>Proses penarikan 1-2 hari kerja</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 text-blue-500">•</span>
+                  <span>Pastikan data rekening benar</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 text-blue-500">•</span>
+                  <span>
+                    Bank yang didukung: BCA, Mandiri, BRI, BNI, CIMB, Danamon
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 text-blue-500">•</span>
+                  <span>
+                    Penarikan yang sedang diproses akan mengurangi saldo
+                    tersedia
+                  </span>
+                </li>
+              </ul>
+
+              <div className="mt-6 pt-4 border-t border-blue-200">
+                <h4 className="font-medium mb-3">Detail Saldo</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Pendapatan:</span>
+                    <span className="font-medium text-green-600">
+                      {formatCurrency(totalEarnings)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Sudah Ditarik:</span>
+                    <span className="font-medium text-red-600">
+                      -{formatCurrency(totalCompletedWithdrawals)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Sedang Diproses:</span>
+                    <span className="font-medium text-yellow-600">
+                      -{formatCurrency(totalPendingWithdrawals)}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-blue-200 flex justify-between">
+                    <span className="font-medium text-gray-800">
+                      Dapat Ditarik:
+                    </span>
+                    <span className="font-bold text-blue-600">
+                      {formatCurrency(availableForWithdrawal)}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tanggal
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Jumlah
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Bank Tujuan
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {isLoadingHistory ? (
+
+        {/* Payment History */}
+        <div className="bg-white rounded-xl shadow border border-gray-100">
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 rounded-t-xl">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Riwayat Pembayaran
+              </h2>
+              <span className="text-sm text-gray-500">
+                {payments.length} total pembayaran
+              </span>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center">
-                    <div className="flex justify-center">
-                      <svg className="animate-spin h-6 w-6 text-blue-500" viewBox="0 0 24 24">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tanggal
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Pasien
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Jumlah
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {payments.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="px-6 py-8 text-center text-gray-500"
+                    >
+                      <div className="flex flex-col items-center">
+                        <svg
+                          className="w-12 h-12 text-gray-300 mb-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <p>Belum ada riwayat pembayaran</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  payments
+                    .sort((a, b) => {
+                      const dateA =
+                        a.paymentDate?.toDate?.() ||
+                        a.createdAt?.toDate?.() ||
+                        new Date(a.paymentDate || a.createdAt);
+                      const dateB =
+                        b.paymentDate?.toDate?.() ||
+                        b.createdAt?.toDate?.() ||
+                        new Date(b.paymentDate || b.createdAt);
+                      return dateB - dateA;
+                    })
+                    .map((payment) => (
+                      <tr
+                        key={payment.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatDate(payment.paymentDate || payment.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {payment.patientName || "Pasien Tidak Dikenal"}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            ID: {payment.patientId?.slice(-8) || "N/A"}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                          {formatCurrency(payment.amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              payment.status === "completed"
+                                ? "bg-green-100 text-green-800"
+                                : payment.status === "pending"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : payment.status === "failed"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {getPaymentStatus(payment.status)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Withdrawal History */}
+        <div className="bg-white rounded-xl shadow border border-gray-100">
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 rounded-t-xl">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Riwayat Penarikan
+              </h2>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-500">
+                  {withdrawalHistory.length} total penarikan
+                </span>
+                <button
+                  onClick={fetchWithdrawalHistory}
+                  disabled={isLoadingHistory}
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                >
+                  {isLoadingHistory ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                         <circle
                           className="opacity-25"
                           cx="12"
@@ -2788,93 +3199,204 @@ const PaymentsView = () => {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         ></path>
                       </svg>
-                    </div>
-                  </td>
-                </tr>
-              ) : withdrawalHistory.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
-                    <div className="flex flex-col items-center">
-                      <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      Memuat...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
                       </svg>
-                      <p>Belum ada riwayat penarikan</p>
-                      <p className="text-xs text-gray-400 mt-1">Penarikan yang Anda ajukan akan muncul di sini</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                withdrawalHistory.map((withdrawal) => {
-                  const status = getWithdrawalStatus(withdrawal.status);
-                  return (
-                    <tr key={withdrawal.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(withdrawal.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        {formatCurrency(withdrawal.amount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <div className="font-medium">
-                          {getBankName(withdrawal.bank)} - {withdrawal.accountNumber}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          a.n. {withdrawal.accountName}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}
-                        >
-                          {status.text}
-                        </span>
-                        {withdrawal.status === 'rejected' && withdrawal.rejectionReason && (
-                          <div className="text-xs text-red-500 mt-1">
-                            {withdrawal.rejectionReason}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Withdrawal Statistics */}
-      {withdrawalHistory.length > 0 && (
-        <div className="bg-white rounded-xl shadow border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold mb-4">Statistik Penarikan</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <p className="text-sm text-gray-600">Berhasil</p>
-              <p className="text-xl font-bold text-green-600">{completedWithdrawals.length}</p>
-              <p className="text-xs text-green-600">{formatCurrency(totalCompletedWithdrawals)}</p>
-            </div>
-            <div className="text-center p-4 bg-yellow-50 rounded-lg">
-              <p className="text-sm text-gray-600">Diproses</p>
-              <p className="text-xl font-bold text-yellow-600">{pendingWithdrawals.length}</p>
-              <p className="text-xs text-yellow-600">{formatCurrency(totalPendingWithdrawals)}</p>
-            </div>
-            <div className="text-center p-4 bg-red-50 rounded-lg">
-              <p className="text-sm text-gray-600">Ditolak</p>
-              <p className="text-xl font-bold text-red-600">{rejectedWithdrawals.length}</p>
-              <p className="text-xs text-red-600">{formatCurrency(rejectedWithdrawals.reduce((sum, w) => sum + (w.amount || 0), 0))}</p>
-            </div>
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-gray-600">Total Pengajuan</p>
-              <p className="text-xl font-bold text-blue-600">{withdrawalHistory.length}</p>
-              <p className="text-xs text-blue-600">{formatCurrency(withdrawalHistory.reduce((sum, w) => sum + (w.amount || 0), 0))}</p>
+                      Segarkan
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tanggal
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Jumlah
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Bank Tujuan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {isLoadingHistory ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-8 text-center">
+                      <div className="flex justify-center">
+                        <svg
+                          className="animate-spin h-6 w-6 text-blue-500"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                      </div>
+                    </td>
+                  </tr>
+                ) : withdrawalHistory.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="px-6 py-8 text-center text-gray-500"
+                    >
+                      <div className="flex flex-col items-center">
+                        <svg
+                          className="w-12 h-12 text-gray-300 mb-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <p>Belum ada riwayat penarikan</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Penarikan yang Anda ajukan akan muncul di sini
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  withdrawalHistory.map((withdrawal) => {
+                    const status = getWithdrawalStatus(withdrawal.status);
+                    return (
+                      <tr
+                        key={withdrawal.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatDate(withdrawal.createdAt)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                          {formatCurrency(withdrawal.amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="font-medium">
+                            {getBankName(withdrawal.bank)} -{" "}
+                            {withdrawal.accountNumber}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            a.n. {withdrawal.accountName}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}
+                          >
+                            {status.text}
+                          </span>
+                          {withdrawal.status === "rejected" &&
+                            withdrawal.rejectionReason && (
+                              <div className="text-xs text-red-500 mt-1">
+                                {withdrawal.rejectionReason}
+                              </div>
+                            )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      )}
-    </div>
-  );
-};
 
+        {/* Withdrawal Statistics */}
+        {withdrawalHistory.length > 0 && (
+          <div className="bg-white rounded-xl shadow border border-gray-100 p-6">
+            <h3 className="text-lg font-semibold mb-4">Statistik Penarikan</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <p className="text-sm text-gray-600">Berhasil</p>
+                <p className="text-xl font-bold text-green-600">
+                  {completedWithdrawals.length}
+                </p>
+                <p className="text-xs text-green-600">
+                  {formatCurrency(totalCompletedWithdrawals)}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                <p className="text-sm text-gray-600">Diproses</p>
+                <p className="text-xl font-bold text-yellow-600">
+                  {pendingWithdrawals.length}
+                </p>
+                <p className="text-xs text-yellow-600">
+                  {formatCurrency(totalPendingWithdrawals)}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-red-50 rounded-lg">
+                <p className="text-sm text-gray-600">Ditolak</p>
+                <p className="text-xl font-bold text-red-600">
+                  {rejectedWithdrawals.length}
+                </p>
+                <p className="text-xs text-red-600">
+                  {formatCurrency(
+                    rejectedWithdrawals.reduce(
+                      (sum, w) => sum + (w.amount || 0),
+                      0
+                    )
+                  )}
+                </p>
+              </div>
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-gray-600">Total Pengajuan</p>
+                <p className="text-xl font-bold text-blue-600">
+                  {withdrawalHistory.length}
+                </p>
+                <p className="text-xs text-blue-600">
+                  {formatCurrency(
+                    withdrawalHistory.reduce(
+                      (sum, w) => sum + (w.amount || 0),
+                      0
+                    )
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const AccountView = () => {
     const [isEditing, setIsEditing] = useState(false);

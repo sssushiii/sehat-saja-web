@@ -3,17 +3,67 @@ import { useState, useEffect } from "react";
 import Footer from "@/components/footer/page";
 import NavbarWhite from "@/components/navbar-white";
 import DoctorList from "@/components/DoctorList";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../lib/firebase"; // Sesuaikan dengan path firebase config Anda
+import { collection, getDocs, query, where, doc } from "firebase/firestore";
+import { auth, db } from "../../lib/firebase";
+import { getDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
+import {
+  onAuthStateChanged,
+} from "firebase/auth";
 
 export default function Appointment() {
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+
+            // Cek role dan redirect jika bukan "user"
+            if (userData.role === "admin") {
+              router.push("/dashboard/admin");
+              return;
+            } else if (userData.role === "doctor") {
+              router.push("/dashboard/doctor");
+              return;
+            } else if (userData.role !== "user") {
+              // Role tidak dikenal, redirect ke home
+              router.push("/");
+              return;
+            }
+
+            // Jika role adalah "user", biarkan akses halaman
+            // Set user state jika diperlukan
+            setUser(currentUser);
+            setLoading(false);
+          } else {
+            // User document tidak ada, redirect ke home
+            router.push("/");
+          }
+        } catch (error) {
+          console.error("Error checking user role:", error);
+          router.push("/sign-in");
+        }
+      } else {
+        // User tidak login, redirect ke sign-in
+        router.push("/sign-in");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
   const [specialization, setSpecialization] = useState("all");
   const [searchName, setSearchName] = useState("");
-  
+
   // State untuk form inputs sementara
   const [tempSpecialization, setTempSpecialization] = useState("all");
   const [tempSearchName, setTempSearchName] = useState("");
-  
+
   // Dynamic specializations dari database
   const [specializations, setSpecializations] = useState([]);
   const [specializationsLoading, setSpecializationsLoading] = useState(true);
@@ -26,33 +76,42 @@ export default function Appointment() {
         const doctorsCollection = collection(db, "users");
         const q = query(doctorsCollection, where("role", "==", "doctor"));
         const querySnapshot = await getDocs(q);
-        
+
         const allSpecializations = new Set();
         allSpecializations.add("all");
-        
+
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          if (data.specialization && typeof data.specialization === 'string') {
+          if (data.specialization && typeof data.specialization === "string") {
             allSpecializations.add(data.specialization);
           }
         });
-        
+
         // Convert Set to Array dan sort
-        const sortedSpecializations = Array.from(allSpecializations).sort((a, b) => {
-          if (a === "all") return -1;
-          if (b === "all") return 1;
-          return a.localeCompare(b);
-        });
-        
+        const sortedSpecializations = Array.from(allSpecializations).sort(
+          (a, b) => {
+            if (a === "all") return -1;
+            if (b === "all") return 1;
+            return a.localeCompare(b);
+          }
+        );
+
         setSpecializations(sortedSpecializations);
       } catch (error) {
         console.error("Error fetching specializations:", error);
         // Fallback ke specializations statis jika Firebase gagal
         setSpecializations([
-          "all", "Dokter Umum", "Dokter Gigi", "Dokter Tulang", 
-          "Dokter THT", "Dokter Kulit", "Dokter Anak", 
-          "Dokter Kandungan", "Dokter Saraf", "Dokter Mata", 
-          "Dokter Penyakit Dalam"
+          "all",
+          "Dokter Umum",
+          "Dokter Gigi",
+          "Dokter Tulang",
+          "Dokter THT",
+          "Dokter Kulit",
+          "Dokter Anak",
+          "Dokter Kandungan",
+          "Dokter Saraf",
+          "Dokter Mata",
+          "Dokter Penyakit Dalam",
         ]);
       } finally {
         setSpecializationsLoading(false);
@@ -76,16 +135,17 @@ export default function Appointment() {
   };
 
   const capitalizeWords = (str) => {
-    return str.split(' ').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
+    return str
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
   return (
     <>
       <div className="all relative">
         <NavbarWhite />
-        
+
         {/* Header Section */}
         <div className="bg-blue-50 text-black w-full pt-[8rem] pb-10 px-4 md:px-[14rem]">
           <div className="text-center mb-8">
@@ -100,10 +160,9 @@ export default function Appointment() {
 
         {/* Search and Filter Section */}
         <div className="bg-blue-50 text-black justify-center flex flex-col items-center w-full h-auto pb-20 px-4 md:px-[14rem]">
-          
           {/* Search Form */}
-          <form 
-            onSubmit={handleSubmit} 
+          <form
+            onSubmit={handleSubmit}
             className="w-full bg-white p-6 md:p-7 rounded-md border-gray-300 border-[0.1rem] mb-10 shadow-[0px_0px_10px_rgba(0,0,0,0.15)]"
           >
             {/* Search Input */}
@@ -122,7 +181,9 @@ export default function Appointment() {
             <div className="flex flex-col md:flex-row items-center gap-4">
               {/* Specialization Select */}
               <div className="flex flex-col w-full md:w-2/3">
-                <label className="text-sm text-gray-600 mb-1">Specialization</label>
+                <label className="text-sm text-gray-600 mb-1">
+                  Specialization
+                </label>
                 <select
                   name="specialization"
                   className="w-full h-[3.5rem] px-4 py-3 border-gray-300 border-[0.1rem] rounded-md outline-none hover:border-blue-500 focus:border-blue-500 transition-colors"
@@ -135,7 +196,9 @@ export default function Appointment() {
                   ) : (
                     specializations.map((spec) => (
                       <option key={spec} value={spec}>
-                        {spec === "all" ? "All Specializations" : capitalizeWords(spec)}
+                        {spec === "all"
+                          ? "All Specializations"
+                          : capitalizeWords(spec)}
                       </option>
                     ))
                   )}
@@ -184,13 +247,14 @@ export default function Appointment() {
           <div className="w-full flex justify-between items-center mb-6">
             <div>
               <h2 className="text-2xl font-semibold text-gray-800">
-                {searchName || specialization !== "all" ? "Search Results" : "Available Doctors"}
+                {searchName || specialization !== "all"
+                  ? "Search Results"
+                  : "Available Doctors"}
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                {searchName || specialization !== "all" 
-                  ? "Showing doctors matching your criteria" 
-                  : "Browse all available healthcare providers"
-                }
+                {searchName || specialization !== "all"
+                  ? "Showing doctors matching your criteria"
+                  : "Browse all available healthcare providers"}
               </p>
             </div>
             {(searchName || specialization !== "all") && (
@@ -211,17 +275,12 @@ export default function Appointment() {
             showOnlyApproved={true}
           />
         </div>
-        
+
         <Footer />
       </div>
     </>
   );
 }
-
-
-
-
-
 
 // "use client";
 // import { useState } from "react";

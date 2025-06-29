@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "../../lib/firebase"; // Sesuaikan dengan path firebase config Anda
+import { useRouter } from "next/navigation";
 
 const ArticleList = ({ 
   articleCount, 

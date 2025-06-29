@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 
 const db = getFirestore();
 

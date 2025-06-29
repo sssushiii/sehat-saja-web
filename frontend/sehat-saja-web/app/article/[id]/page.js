@@ -4,18 +4,66 @@ import NavbarWhite from "@/components/navbar-white";
 import Footer from "@/components/footer/page";
 import { notFound } from 'next/navigation';
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { CaretLeft, CaretUpIcon } from "@phosphor-icons/react/dist/ssr";
 import { useState, useEffect, use } from "react"; // Tambah 'use' import
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../../lib/firebase"; // Sesuaikan dengan path firebase config Anda
+import { auth, db } from "../../../lib/firebase";
+import {
+  onAuthStateChanged,
+} from "firebase/auth";
 
 export default function ArticlePage({ params }) {
+    const router = useRouter();
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            
+            // Cek role dan redirect jika bukan "user"
+            if (userData.role === "admin") {
+              router.push("/dashboard/admin");
+              return;
+            } else if (userData.role === "doctor") {
+              router.push("/dashboard/doctor");
+              return;
+            } else if (userData.role !== "user") {
+              // Role tidak dikenal, redirect ke home
+              router.push("/");
+              return;
+            }
+            
+            // Jika role adalah "user", biarkan akses halaman
+            // Set user state jika diperlukan
+            setUser(currentUser);
+            setLoading(false);
+          } else {
+            // User document tidak ada, redirect ke home
+            router.push("/");
+          }
+        } catch (error) {
+          console.error("Error checking user role:", error);
+          router.push("/sign-in");
+        }
+      } else {
+        // User tidak login, redirect ke sign-in
+        router.push("/sign-in");
+      }
+    });
+  
+    return () => unsubscribe();
+  }, [router]);
   // Unwrap params menggunakan React.use()
   const { id } = use(params);
   
   const [article, setArticle] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Fetch single article from Firebase
