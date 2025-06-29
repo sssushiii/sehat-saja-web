@@ -113,7 +113,7 @@ export default function SignIn() {
                                     </div>
 
                                     <div className="dont-have flex justify-center text-xs font-medium">
-                                        <span className="mr-1">Don't have an account?</span>
+                                        <span className="mr-1">Don`t have an account?</span>
                                         <Link href="/sign-up" className="font-semibold text-blue-500 hover:text-blue-700">
                                             Sign Up
                                         </Link>
@@ -122,6 +122,7 @@ export default function SignIn() {
                             </div>
                         </div>
                     </div>
+                    
 
                     <div className="first-right w-full h-full flex items-center">
                         <div className="second-left w-[75%] h-[85%] bg-blue-500 rounded-r-2xl relative">
